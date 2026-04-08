@@ -1,0 +1,1330 @@
+import { useState, useEffect, useRef } from "react";
+
+// ── localStorage helpers ──
+const LS = {
+  get: (key, fallback = null) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
+  set: (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} },
+};
+
+const BASE_RECIPES = [
+  { id: 1, name: "Singapurská kuřecí laksa", tag: "Kuřecí", time: "30 min", emoji: "🍜", rating: 5, source: "Yummy",
+    desc: "Kokosový vývar s kari pastou, kuřecím masem a rýžovými nudlemi.",
+    ingredients: ["1 bal. červeného zelí","1 červená cibule","0,5 limetky","2–3 lžičky cukru","2 stroužky česneku","1 bal. kuřecích prsních nudliček","2–3 lžíce oleje","1 bal. kari pasty","7 dl vody","1 bal. kokosového mléka","1 bal. kuřecího bujónu","2 bal. sójové omáčky","1 bal. rýžových nudlí","1 bal. koriandru"],
+    steps: ["Nakrájej červené zelí na kousky, červenou cibuli najemno. Smíchej s limetkovou šťávou, cukrem a solí. Odlož stranou.","Česnek oloupej a nakrájej najemno. Kuřecí maso nakrájej na tenké nudličky.","Rozehřej olej v hrnci, opékej kuřecí maso 4–5 min za stálého míchání. Přidej česnek a kari pastu, opékej další 2 min.","Vlij vodu a kokosové mléko, přidej kuřecí bujón a sójovou omáčku. Vař 8–10 min na mírném ohni.","V jiném hrnci uvař rýžové nudle podle návodu, sceď a promíchej s olejem.","Rozděl nudle do misek, přelij horkým vývarem s kuřecím masem. Doplň zelným salátem a koriandrem, zakápni limetkou."] },
+  { id: 2, name: "Vepřové Kung Pao s rýží", tag: "Vepřové", time: "35 min", emoji: "🥩", rating: 4, source: "Yummy",
+    desc: "Pikantní čínské vepřové s paprikou, arašídy a jasmínovou rýží.",
+    ingredients: ["1 bal. jasmínové rýže","1 bal. tmavé sójové omáčky","1 bal. bílého octa","1 lžíce cukru","1 bal. kukuřičného škrobu","1 bal. sušeného zázvoru","1 bal. chilli vloček","3 stroužky česneku","1 bal. jarní cibulky","1 zelená paprika","1 červená paprika","1 bal. vepřových kotlet","2 lžíce oleje","1 bal. solených arašídů"],
+    steps: ["Uvař rýži podle návodu na obalu.","Smíchej v misce sójovou omáčku, ocet, cukr, vodu, kukuřičný škrob, zázvor a chilli vločky — marinád je hotová.","Česnek nastrouhej, jarní cibulku nakrájej nadrobno. Papriky zbav jadřinců a nakrájej na plátky. Vepřové maso nakrájej na tenké nudličky.","Rozehřej pánev s olejem, přidej vepřové maso, ochu sůl a pepř, restuj 4–5 min, poté přesuň na talíř.","Na stejné pánvi restuj česnek, jarní cibulku a papriku 2–3 min. Vrať maso, vlij omáčku a restuj 3–4 min.","Nasekej arašídy nahrubo, přidej do pánve. Podávej s rýží."] },
+  { id: 3, name: "Krémové kuřecí orzotto", tag: "Kuřecí", time: "40 min", emoji: "🍚", rating: 5, source: "Yummy",
+    desc: "Sametové orzo těstoviny s kuřecím masem, špenátem a italským sýrem.",
+    ingredients: ["12 dl vody","1 bal. kuřecího bujónu","1 cibule","2 stroužky česneku","1 bal. špenátu","2 lžíce oleje","1 bal. kuřecích prsních nudliček","1 bal. oregána","1 bal. orzo těstovin","1 bal. žervé","0,5 bal. italského sýru","1 citron"],
+    steps: ["Uvař vývar: přiveď 12 dl vody k varu, přidej kuřecí bujón, stáhni z ohně.","Nakrájej cibuli a česnek najemno. Špenát propláchni pod studenou vodou.","Rozehřej olej ve velkém hrnci, restuj kuřecí maso 4–5 min. Přidej cibuli a česnek, restuj 3–4 min. Ochuť solí, pepřem a oregánem.","Přidej orzo těstoviny, zalijej vývarem. Přiveď k varu, vař 12–15 min za průběžného míchání.","Vmíchej špenát, žervé a italský sýr. Nastrouhej citronovou kůru, přidej citronovou šťávu.","Podávej ihned, posypané zbývajícím sýrem."] },
+  { id: 4, name: "Hovězí wok s BBQ omáčkou", tag: "Hovězí", time: "35 min", emoji: "🥢", rating: 4, source: "Yummy",
+    desc: "Asijský wok s mletým hovězím, červeným zelím a rýžovými nudlemi.",
+    ingredients: ["2 stroužky česneku","1 bal. barbecue omáčky","1 bal. sójové omáčky","1 bal. sušeného zázvoru","2 mrkve","2–3 lžíce oleje","1 bal. mletého hovězího masa","1 bal. červeného zelí","1 bal. rýžových nudlí","1 bal. jarní cibulky","1 bal. sezamových semínek"],
+    steps: ["Smíchej v misce česnek (najemno), BBQ omáčku, sójovou omáčku, ocet a sušený zázvor. Nech odležet.","Mrkev oloupej a nakrájej na tenké nudličky.","Rozehřej olej na pánvi, přidej hovězí mleté maso a restuj 6–8 min. Ochu solí a pepřem.","Vlij připravenou BBQ směs, přidej vodu. Přiveď k mírném varu a vař 10–15 min.","Přidej nakrájené zelí a promíchej, restuj 2–3 min.","Uvař rýžové nudle, sceď, promíchej s olejem. Podávej s hovězí směsí, posyp jarní cibulkou a sezamem."] },
+  { id: 5, name: "Sladkokyselý vepřový wok", tag: "Vepřové", time: "25 min", emoji: "🍱", rating: 4, source: "Yummy",
+    desc: "Rychlý wok s mletým vepřovým, zeleninou a sladkokyselou omáčkou.",
+    ingredients: ["1 bal. jasmínové rýže","2 stroužky česneku","2–3 lžíce oleje","1 bal. mletého vepřového masa","1 bal. wok zeleniny","2 bal. sójové omáčky","2 bal. sladkokyselé omáčky"],
+    steps: ["Dej vařit vodu na rýži a uvař ji podle návodu.","Česnek oloupej a nasekej najemno.","Rozehřej pánev s olejem, přidej mleté vepřové maso a restuj 4–5 min. Ochu solí a pepřem.","Přidej česnek a wok zeleninu, restuj 3–4 min, poté vmíchej sójovou omáčku.","Přilij sladkokyselou omáčku a restuj další 2–3 min za občasného promíchání.","Podávej s rýží."] },
+  { id: 6, name: "Indický čočkový dhal", tag: "Vegan", time: "45 min", emoji: "🌱", rating: 5, source: "Yummy",
+    desc: "Aromatický dhal s kokosovým mlékem, kari kořením a basmati rýží.",
+    ingredients: ["1 bal. basmati rýže","2 bal. sušené červené čočky","1 cibule","3 stroužky česneku","1 kus zázvoru","3 mrkve","2 lžíce oleje","1 bal. chilli vloček","1 bal. kmínu","1 bal. kari koření","1 bal. skořice","1 bal. rajčatového protlaku","1 bal. kokosového mléka","5–6 dl vody","1 bal. koriandru","0,5–1 citron"],
+    steps: ["Uvař basmati rýži podle návodu, proplachni čočku pod studenou vodou.","Nakrájej cibuli a česnek nadrobno, zázvor nastrouhej. Mrkev oloupej a nakrájej na malé kostičky.","Rozehřej olej na pánvi, přidej cibuli, česnek, zázvor, chilli a mrkev. Restuj 3–4 min za stálého míchání. Ochu solí, pepřem, cukrem, kmínem, kari kořením, skořicí a rajčatovým protlakem.","Přidej čočku a kokosové mléko. Přilij vodu a přiveď k varu.","Ztluml plamen a vař 20–25 min za průběžného míchání, podle potřeby přilij více vody.","Nasekej koriandr. Zakápni dhahl citronovou šťávou, posyp koriandrem. Podávej s rýží."] },
+  { id: 7, name: "Krémový kuřecí chowder", tag: "Polévky", time: "50 min", emoji: "🍲", rating: 5, source: "Yummy",
+    desc: "Hustá americká polévka s kuřecím masem, kukuřicí a bramborami.",
+    ingredients: ["50 g jarní cibulky","3 stroužky česneku","2 mrkve","1 kg brambor","1 bal. kuřecích prsních nudliček","1 lžíce oleje","2–3 lžíce másla","1 bal. sušeného tymiánu","1 bal. kari koření","3 lžíce hladké mouky","11–12 dl vody","1 bal. kuřecího bujónu","1 bal. kukuřice","1 bal. smetany na vaření"],
+    steps: ["Nakrájej jarní cibulku, česnek, mrkev a brambory. Kuřecí maso nakrájej na tenké plátky.","Rozehřej olej a máslo v hrnci, přidej kuřecí maso a restuj 4–5 min.","Přidej polovinu jarní cibulky, česnek a mrkev. Ochu solí, pepřem, tymiánem a kari kořením.","Přidej mouku a restuj 1–2 min. Postupně přilévej vodu za stálého míchání.","Přidej brambory a kuřecí bujón. Přiveď k varu a vař 15–20 min na nízkém plameni.","Sceď kukuřici, přidej do hrnce spolu se smetanou. Přiveď k varu, vař 5 min na nízkém plameni. Podávej posypané zbývající jarní cibulkou."] },
+  { id: 8, name: "Hoisin udon s mungo klíčky", tag: "Vegan", time: "20 min", emoji: "🥦", rating: 4, source: "Yummy",
+    desc: "Rychlé udon nudle s rostlinnou směsí, hoisin omáčkou a sezamem.",
+    ingredients: ["2 bal. udon nudlí","2 stroužky česneku","2 mrkve","1 bal. jarní cibulky","1 bal. mungo klíčků","2–3 lžíce oleje","1 bal. rostlinné mleté směsi","1 bal. sušeného zázvoru","1 bal. hoisin omáčky","1 bal. sójové omáčky","1 bal. sezamových semínek"],
+    steps: ["Přiveď vodu k varu, vlož nudle a vař podle návodu na obalu.","Nastrouhej česnek, mrkev nakrájej na šikmé plátky, jarní cibulku na tenké proužky. Proplachni mungo klíčky.","Rozehřej olej na pánvi, přidej česnek, mrkev a rostlinné mleté, zázvor. Restuj 4–5 min za občasného míchání. Ochu solí a pepřem.","Přidej uvařené nudle, hoisin omáčku, sójovou omáčku a sezamová semínka. Restuj 2–3 min.","Vmíchej mungo klíčky, krátce prohřej a stáhni pánev z plotny.","Rozdej na talíře a posyp jarní cibulkou."] },
+  { id: 9, name: "Thajské nudle s arašídovou omáčkou", tag: "Kuřecí", time: "25 min", emoji: "🥜", rating: 5, source: "Nový",
+    desc: "Hedvábná arašídová omáčka, kuřecí maso a čerstvá zelenina — thajský hit.",
+    ingredients: ["300 g kuřecích prsou","200 g rýžových nudlí","1 červená paprika","2 mrkve","3 stroužky česneku","1 kus zázvoru","3 lžíce arašídového másla","2 lžíce sójové omáčky","1 lžíce medu","1 lžičku sezamového oleje","1 lžíce oleje","1 bal. jarní cibulky","hrst koriandru","1 lžíce limetkové šťávy"],
+    steps: ["Namočí rýžové nudle do horké vody na 8–10 min, sceď.","Kuřecí prsa nakrájej na tenké proužky. Papriku a mrkev nakrájej na nudličky. Česnek a zázvor nastrouhej.","Smíchej arašídové máslo, sójovou omáčku, med, sezamový olej a limetkovou šťávu — omáčka je hotová.","Rozehřej olej na pánvi, opékej kuřecí maso 5–6 min dozlatova.","Přidej česnek, zázvor, papriku a mrkev, restuj 3 min.","Přidej nudle a arašídovou omáčku, promíchej. Podávej posypané koriandrem a jarní cibulkou."] },
+  { id: 10, name: "Japonské lososové donburi", tag: "Ryby", time: "20 min", emoji: "🐟", rating: 5, source: "Nový",
+    desc: "Rýžová miska s teriyaki lososem, edamame a avokádem. Za 20 minut.",
+    ingredients: ["2 filety lososa (cca 300 g)","300 g jasmínové rýže","3 lžíce sójové omáčky","2 lžíce medu","1 lžíce rýžového octa","1 lžičku sezamového oleje","1 avokádo","150 g edamame","2 jarní cibulky","1 lžíce sezamových semínek","½ okurky"],
+    steps: ["Uvař rýži podle návodu. Smíchej sójovou omáčku, med, rýžový ocet a sezamový olej — teriyaki omáčka hotová.","Lososa marinuj v omáčce 5 min. Edamame povař 3 min v osolené vodě.","Rozehřej pánev bez oleje, opékej lososa kůží dolů 3–4 min, otočte a opékej další 2 min. Polijte zbývající omáčkou.","Avokádo a okurku nakrájej na plátky.","Rozděl rýži do misek, přidej lososa, avokádo, okurku a edamame.","Posyp sezamem a jarní cibulkou."] },
+  { id: 11, name: "Korejské bibimbap", tag: "Vegan", time: "30 min", emoji: "🍳", rating: 5, source: "Nový",
+    desc: "Ikonická korejská rýžová miska s barevnou zeleninou a gochujang omáčkou.",
+    ingredients: ["300 g jasmínové rýže","2 mrkve","1 cuketa","100 g špenátu","1 červená paprika","100 g žampionů","4 vejce","3 lžíce sójové omáčky","1 lžíce sezamového oleje","2 lžíce gochujang pasty","1 lžíce medu","2 stroužky česneku","2 lžíce oleje"],
+    steps: ["Uvař rýži. Smíchej gochujang, med, sójovou omáčku a sezamový olej — dresink hotový.","Mrkev a cuketu nakrájej na nudličky, papriku na proužky, žampiony na plátky. Špenát proplachni.","Na pánvi s olejem restuj každou zeleninu zvlášť 2–3 min s trochou česneku a sójové omáčky.","Na pánvi smaž vejce volská — bílek pevný, žloutek tekutý.","Rozděl rýži do misek, přikládej zeleniny vedle sebe barevně.","Položí na vrch vejce, přelij dresink. Před jídlem vše promíchej."] },
+  { id: 12, name: "Hovězí a brokolice stir-fry", tag: "Hovězí", time: "20 min", emoji: "🥩", rating: 5, source: "Nový",
+    desc: "Čínská klasika — křupavá brokolice a hovězí v tmavé sójové omáčce.",
+    ingredients: ["350 g hovězí svíčkové","1 velká brokolice","3 stroužky česneku","1 kus zázvoru","3 lžíce sójové omáčky","1 lžíce ústřicové omáčky","1 lžíce kukuřičného škrobu","1 lžíce sezamového oleje","2 lžíce oleje","300 g jasmínové rýže","2 dl hovězího vývaru"],
+    steps: ["Uvař rýži. Hovězí nakrájej na tenké proužky, marinuj 10 min v kukuřičném škrobu.","Brokulik rozeber na růžičky. Česnek a zázvor nastrouhej.","Smíchej sójovou omáčku, ústřicovou omáčku, sezamový olej a vývar.","Rozehřej wok nebo pánev na vysokou teplotu, restuj hovězí 2–3 min. Odlož stranou.","Na stejné pánvi restuj česnek, zázvor a brokulik 3–4 min.","Vrať hovězí, vlij omáčku, promíchej a restuj 1–2 min. Podávej s rýží."] },
+  { id: 13, name: "Miso polévka s tofu", tag: "Polévky", time: "15 min", emoji: "🫘", rating: 4, source: "Nový",
+    desc: "Nejrychlejší recept — uklidňující japonský vývar s hedvábným tofu.",
+    ingredients: ["1,2 l vody","3 lžíce bílé miso pasty","200 g hedvábného tofu","2 lžíce sušeného wakame","3 jarní cibulky","1 lžičku sezamového oleje","100 g rýžových nudlí (volitelné)"],
+    steps: ["Přiveď vodu téměř k varu (ne vřít). Namočí wakame v troše vody na 5 min.","Tofu nakrájej na kostičky, jarní cibulku na kolečka.","Rozmíchej miso pastu v troše teplé vody, přidej do hrnce (nemíchej při varu — zničí probiotika).","Přidej tofu, wakame a sezamový olej. Krátce prohřej.","Pokud chceš nudle, uvař je zvlášť a přidej do polévky.","Podávej posypané jarní cibulkou."] },
+  { id: 14, name: "Kuřecí teriyaki s brokolicí", tag: "Kuřecí", time: "20 min", emoji: "🍣", rating: 5, source: "Nový",
+    desc: "Japonský favorit — sladko-slaná teriyaki glazura na šťavnatém kuřeti.",
+    ingredients: ["400 g kuřecích stehen","300 g jasmínové rýže","1 velká brokolice","4 lžíce sójové omáčky","2 lžíce medu","1 lžíce rýžového octa","1 lžičku sezamového oleje","2 stroužky česneku","1 lžíce oleje","sezamová semínka"],
+    steps: ["Uvař rýži. Smíchej sójovou omáčku, med, ocet a sezamový olej — teriyaki omáčka.","Kuřecí stehna nakrájej na větší kousky, marinuj v polovině omáčky 5–10 min.","Brokulik rozeber na růžičky, povař 3 min v osolené vodě, sceď.","Rozehřej olej na pánvi, opékej kuřecí maso 4–5 min z každé strany dozlatova.","Přidej zbývající omáčku a česnek, glazuruj maso 2 min.","Podávej s rýží a brokolicí, posypané sezamem."] },
+  { id: 15, name: "Losos v citronové krustě", tag: "Ryby", time: "25 min", emoji: "🍋", rating: 5, source: "Nový",
+    desc: "Pečený losos s křupavou panko-parmezánovou krustou a mladými bramborami.",
+    ingredients: ["4 filety lososa (600 g)","2 stroužky česneku","kůra a šťáva z 1 citronu","3 lžíce strouhanky panko","2 lžíce parmezánu","2 lžíce čerstvé petrželky","1 lžíce olivového oleje","sůl a pepř","500 g mladých brambor"],
+    steps: ["Předehřej troubu na 200 °C. Brambory povař 15 min v osolené vodě, sceď.","Smíchej panko, parmezán, petrželku, citronovou kůru, česnek a olivový olej — krusta hotová.","Lososa uložte na plech vyložený papírem. Ochu solí, pepřem a zakápni citronem.","Nanes krustu rovnoměrně na povrch každého filetu, jemně přitlač.","Pečte 12–15 min, dokud krusta nezezlatne a losos není propečený.","Podávej s bramborami a citronovými klínky."] },
+  { id: 16, name: "Losos s chřestem z trouby", tag: "Ryby", time: "30 min", emoji: "🐠", rating: 5, source: "Nový",
+    desc: "Celý plát lososa s chřestem na jednom plechu — minimum nádobí, maximum chuti.",
+    ingredients: ["600 g filetu lososa","1 svazek zeleného chřestu","2 citrony","4 stroužky česneku","3 lžíce olivového oleje","1 lžičku tymiánu","1 lžičku rozmarýnu","sůl a pepř","hrst čerstvého kopru"],
+    steps: ["Předehřej troubu na 200 °C. Chřest omyj a odlom dřevnaté konce.","Na plech vyložený papírem rozlož chřest, pokapej olejem, ochu solí a pepřem.","Losos polož na chřest (nebo vedle), ochu solí, pepřem, tymiánem a rozmarýnem.","Česnek nakrájej na plátky, rozlož na lososovi. Citrony nakrájej na kolečka, přikryj lososa.","Peč 20–22 min, dokud losos není neprůhledný a chřest měkký.","Posyp čerstvým koprem a podávej přímo z plechu."] },
+  { id: 17, name: "Buddha Bowl s cizrnou", tag: "Vegan", time: "30 min", emoji: "🥗", rating: 5, source: "Nový",
+    desc: "Pečená cizrna, sladké brambory, avokádo a tahini dresink — plná výživa.",
+    ingredients: ["1 plechovka cizrny (400 g)","2 sladké brambory","1 avokádo","100 g baby špenátu","1 červená řepa vařená","100 g quinoa","3 lžíce tahini","2 lžíce limetkové šťávy","1 lžičku kmínu","1 lžičku kurkumy","1 stroužek česneku","2 lžíce sezamových semínek"],
+    steps: ["Předehřej troubu na 200 °C. Uvař quinoa: 100 g na 200 ml vody, 15 min.","Sladké brambory nakrájej na kostky, cizrnu sceď a osušte. Ochu kmínem, kurkumou, olejem, solí.","Peč brambory a cizrnu 20–25 min, dokud nejsou zlatavé a křupavé.","Smíchej tahini, limetkovou šťávu, prolisovaný česnek a trochu vody — dresink.","Avokádo a červenou řepu nakrájej na plátky.","Sestav misky: quinoa, špenát, pečená zelenina, avokádo, řepa. Přelij dresink, posyp sezamem."] },
+  { id: 18, name: "Čočková polévka s kořenovou zeleninou", tag: "Polévky", time: "40 min", emoji: "🥕", rating: 5, source: "Nový",
+    desc: "Hustá zimní polévka plná vlákniny — vše v jednom hrnci.",
+    ingredients: ["250 g zelené čočky","3 mrkve","2 pastináky","1 celer menší","1 cibule","4 stroužky česneku","2 lžíce olivového oleje","1,5 l zeleninového vývaru","1 plechovka rajčat","1 lžičku kmínu","1 lžičku uzené papriky","hrst čerstvé petrželky","šťáva z ½ citronu"],
+    steps: ["Všechnu zeleninu oloupeji a nakrájej na kostky. Čočku proplachni.","Rozehřej olej v hrnci, přidej cibuli a česnek, restuj 3 min.","Přidej mrkev, pastinák a celer, restuj další 3 min. Ochu kmínem a uzenou paprikou.","Přidej čočku, vývar a rajčata. Přiveď k varu.","Vař na středním ohni 25–30 min, dokud čočka a zelenina nezměknou.","Ochu citronovou šťávou a solí. Podávej posypané čerstvou petrželkou."] },
+  { id: 19, name: "Pečená zelenina s hummusem", tag: "Vegan", time: "35 min", emoji: "🫒", rating: 4, source: "Nový",
+    desc: "Středomořský plát pečené zeleniny s domácím hummusem a teplou pitou.",
+    ingredients: ["1 lilek","2 cukety","1 červená paprika","1 žlutá paprika","200 g cherry rajčat","1 červená cibule","3 lžíce olivového oleje","1 lžičku oregána","1 plechovka cizrny (400 g)","2 lžíce tahini","2 stroužky česneku","šťáva z 1 citronu","4 kusy pita chleba"],
+    steps: ["Předehřej troubu na 200 °C. Všechnu zeleninu nakrájej na větší kousky.","Zeleninu smíchej s olejem, oregánem, solí a pepřem na plech.","Peč 25–30 min, dokud zelenina nezezlatne a nezměkne.","Mezitím připrav hummus: cizrnu sceď, rozmixuj s tahini, citronovou šťávou, česnekem, 3 lžícemi olivového oleje a trochou vody. Ochu solí.","Pioty ohřej v troubě nebo na suché pánvi.","Podávej pečenou zeleninu s hummusem a teplou pitou."] },
+  { id: 20, name: "Quinoa salát s dýní a fetou", tag: "Vegan", time: "35 min", emoji: "🎃", rating: 5, source: "Nový",
+    desc: "Teplý podzimní salát s karamelizovanou dýní Hokkaido a granátovým jablkem.",
+    ingredients: ["300 g quinoa","500 g dýně Hokkaido","100 g fety","semena z ½ granátového jablka","50 g vlašských ořechů","100 g baby špenátu","3 lžíce olivového oleje","1 lžíce medu","1 lžičku skořice","2 lžíce balzamikového octa","sůl a pepř"],
+    steps: ["Předehřej troubu na 200 °C. Dýni nakrájej na klínky (slupku nechej). Uvař quinoa.","Dýni pokapej olejem, posyp skořicí, solí a pepřem. Peč 25 min dozlatova.","Dresink: smíchej med, balzamikový ocet, olivový olej, sůl a pepř.","Fetu rozdrob, vlašské ořechy nahrubo nasekej.","Smíchej quinoa, špenát, pečenou dýni v míse. Přelij dresinkem.","Posyp fetou, ořechy a semeny granátového jablka."] },
+  { id: 21, name: "Kuřecí caesar salát", tag: "Kuřecí", time: "25 min", emoji: "🥬", rating: 5, source: "Nový",
+    desc: "Klasický caesar s grilovaným kuřetem, krutony a smetanovou zálivkou.",
+    ingredients: ["400 g kuřecích prsou","1 hlávka římského salátu","50 g parmezánu","2 krajíce chleba na krutony","2 lžíce olivového oleje","sůl a pepř","3 lžíce majonézy","1 lžíce dijonské hořčice","1 lžíce citronové šťávy","1 stroužek česneku","1 lžíce worcesterské omáčky"],
+    steps: ["Chleba nakrájej na kostky, opečte na suché pánvi nebo v troubě na 180 °C 10 min — krutony.","Kuřecí prsa ochu solí, pepřem a česnekem. Griluj nebo smaž na pánvi 5–6 min z každé strany.","Zálivka: smíchej majonézu, hořčici, citronovou šťávu, prolisovaný česnek a worcester.","Salát nakrájej na větší kusy, parmezán nastrouhej.","Kuřecí maso po odpočinku 3 min nakrájej na plátky.","Smíchej salát se zálivkou, přidej krutony, kuřecí maso a posyp parmezánem."] },
+  { id: 23, name: "Řepný salát s medovo-hořčičným dresinkem", tag: "Vegan", time: "30 min", emoji: "🥗", rating: 5, source: "Nový",
+    desc: "Barevný salát s pečenou řepou, quinoou, rukolou a kozím sýrem.",
+    ingredients: ["4 střední řepy","olivový olej","sůl, pepř","100 g quinoy","125 g rukoly, špenátu nebo polníčku","hrst dýňových semínek nebo vlašských ořechů","120 g čerstvého kozího sýra nebo fety","2 lžíce dijonské hořčice","2 lžíce medu","2 lžíce olivového oleje","½ citronu (šťáva)","½ lžičky tymiánu","sůl"],
+    steps: ["Řepu oloupeji, nakrájej na klínky nebo kostky, pokapej olejem, ochu solí a pepřem. Peč v troubě na 200 °C asi 30–35 min, dokud nezměkne.","Uvař quinoa: opláchni, vař v dvojnásobku vody 15 min, pak nech 5 min odpočinout pod pokličkou.","Připrav dresink: smíchej dijonskou hořčici, med, olivový olej, citronovou šťávu, tymián a sůl.","Rukolu (nebo špenát/polníček) rozlož na talíř, přidej quinoa a upečenou řepu.","Posyp dýňovými semínky nebo vlašskými ořechy, rozdrob kozí sýr nebo fetu navrch.","Přelij medovo-hořčičným dresinkem a ihned podávej."] },
+  { id: 24, name: "Indická čočka", tag: "Vegan", time: "35 min", emoji: "🌿", rating: 5, source: "Nový",
+    desc: "Triviálně jednoduchá, ale o to lepší indie — červená čočka s rajčaty a kokosovým mlékem.",
+    ingredients: ["300 g loupané červené čočky","750 ml vody","1 kostka bio zeleninového bujónu","2 lžíce oleje","1 cibule","4 stroužky česneku","kousek čerstvého zázvoru","1 lžička drceného římského kmínu","1 lžička kari koření","chilli podle chuti","400 g rajčat (spařených nebo konzervovaných)","150 ml kokosového mléka","sůl","rýže s kurkumou k podávání"],
+    steps: ["Červenou čočku propláchni v cedníku a vlož do hrnce. Zalij 750 ml vody s kostkou bujónu, přiveď k varu a vař 5 minut. Odstav, sceď a nech okapat.","V hluboké pánvi rozehřej dvě lžíce oleje a nech na něm změknout pokrájenou cibuli, čtyři stroužky česneku a kousek strouhaného zázvoru.","Okoření lžičkou drceného římského kmínu, lžičkou kari koření a chilli podle chuti.","Orestuj a přidej 400 g spařených, oloupaných a nakrájených rajčat (v zimě použij konzervovaná) a 150 ml kokosového mléka z plechovky.","Dusí bez pokličky 20 minut, vmíchej čočku, osolí.","Podávej s dušenou rýží okořeněnou kurkumou."] },
+  { id: 25, name: "Naan (domácí chlebové placky)", tag: "Vegan", time: "60 min", emoji: "🫓", rating: 5, source: "Nový",
+    desc: "Měkké indické placky z kynutého těsta s česnekem — skvělé k dhalům a kari.",
+    ingredients: ["1 kg hladké mouky","250 ml oleje (olivový nebo slunečnicový)","50 g cukru","30 g soli","800 g vlažné vody","2 sáčky sušených droždí","cca 12 stroužků česneku"],
+    steps: ["Smíchej mouku, cukr, sůl a sušené droždí v míse.","Přidej olej a vlažnou vodu, vypracuj hladké těsto. Nech kynout na teplém místě 45–60 minut, dokud nezdvojnásobí objem.","Česnek oloupej a nastrouhej nebo nakrájej nadrobno.","Těsto rozděl na kousky (cca 100 g), každý vyválejv tenkou placku.","Rozehřej suchou pánev nebo grilovací plát na vysokou teplotu. Opékej placky 2–3 min z každé strany, dokud nevzniknou hnědé skvrny.","Hotové placky potři olejem a posyp česnekem. Podávej teplé."] },
+  { id: 26, name: "Makový koláč s jablky", tag: "Dezerty", time: "75 min", emoji: "🎂", rating: 5, source: "Nový",
+    desc: "Zdravý bezlepkový koláč s mákem, tvarohem a jablky. Bez mouky, plný vlákniny.",
+    ingredients: ["4 vejce","200 g mletého máku","200 g polotučného tvarohu","250 g nastrouhaných jablek","3 lžíce medu","2 lžičky kypřícího prášku bez fosfátů","špetka soli"],
+    steps: ["Troubu předehřej na 170 °C. Formu (Ø 20 cm) vylož pečicím papírem.","U všech čtyř vajec odděl žloutky od bílků.","Žloutky dej do misky a přimíchej k nim mák, tvaroh, jablka, med, kypřící prášek a špetku soli.","Z bílků vyšlehej tuhý sníh a opatrně zamíchej do těsta.","Těsto vlij do připravené formy.","Peč při 160–170 °C cca 60 minut. Nakrájej na 16 dílů a podávej."] },
+  { id: 27, name: "Zdravé sušenky s banánem", tag: "Dezerty", time: "40 min", emoji: "🍪", rating: 4, source: "Nový",
+    desc: "Veganské sušenky z čirokové mouky, banánu a oříškového másla s pistáciemi.",
+    ingredients: ["1 zralý banán","2 lžíce agáve sirupu","3 lžíce oříškového másla","3 lžíce rostlinného mléka","100 g čirokové mouky","50 g pohankové mouky","1 lžíce kakaa","1 lžíce kukuřičného škrobu","½ lžičky kypřícího prášku","špetka soli","hrst pistácií","50 g bílé vegan čokolády"],
+    steps: ["Troubu předehřej na 170 °C. Plech vylož pečicím papírem.","V misce rozmačkej banán a přidej k němu všechny ostatní suroviny (mimo pistácie a čokoládu).","Důkladně promíchej na hustou hmotu.","Rukama tvaruj sušenky a pokládej na plech. Ozdobí pistáciemi a kousky čokolády.","Peč 30 minut na 170 °C.","Nech vychladnout na mřížce a podávej."] },
+  { id: 28, name: "Vanilkové rohlíčky", tag: "Dezerty", time: "45 min", emoji: "🥐", rating: 5, source: "Nový",
+    desc: "Křehké vánoční rohlíčky z mletých ořechů, máslového těsta a moučkového cukru.",
+    ingredients: ["110 g hladké mouky","10 g moučkového cukru","40 g mletých ořechů","110 g másla","1 žloutek"],
+    steps: ["Máslo nech změknout na pokojovou teplotu. Všechny suroviny rychle smíchej a vypracuj hladké těsto.","Těsto zabal do fólie a nech odpočinout v lednici 30 minut.","Troubu předehřej na 170 °C. Plech vylož pečicím papírem.","Z těsta tvaruj malé rohlíčky a pokládej na plech.","Peč 12–15 minut dozlatova — pozor, nesmí příliš zhnědnout.","Ještě teplé obaluj v moučkovém cukru a nech vychladnout."] },
+  { id: 29, name: "Mrkvové placky s tofu", tag: "Vegan", time: "30 min", emoji: "🥕", rating: 5, source: "Nový",
+    desc: "Sytné placky z uzeného tofu a mrkve s kari kořením — skvělé s ředkvičkovým salátem.",
+    ingredients: ["200 g uzeného tofu","300 g mrkve","4 vejce","60 g celozrnné špaldové mouky","1 lžička sušené bazalky","1 lžička sušeného kari","2 lžíce olivového oleje","sůl, pepř"],
+    steps: ["Tofu nastrouhej nahrubo, mrkev oloupeji a nastrouhej také. Přidej vejce, mouku, bazalku, kari, sůl a pepř.","Vše důkladně promíchej na hustou hmotu — těsto by mělo držet pohromadě.","Rozehřej olivový olej na pánvi na středním plameni.","Lžící nabírej směs na pánev a tvaruj placky. Smažit z každé strany 2–4 minuty dozlatova.","Podávej s ředkvičkovým salátem: ředkvičky nakrájej na plátky, smíchej s bílým jogurtem, lžičkou hořčice, solí a jarní cibulkou."] },
+  { id: 30, name: "Čočkový salát s pečenou mrkví", tag: "Vegan", time: "40 min", emoji: "🥗", rating: 5, source: "Nový",
+    desc: "Výživný salát s černou čočkou, karamelizovanou mrkví a oříškovým dresinkem.",
+    ingredients: ["1 hrnek černé nebo zelené čočky","1 bobkový list","sůl","1 svazek karotky (cca 12 ks)","3 červené cibule","2 lžíce olivového oleje","1 lžička římského kmínu","pepř","125 g špenátu, rukoly nebo polníčku","hrst máty","½ citronu nebo 2 lžíce octa","100 g slunečnicových semínek nebo kešú","voda nebo olivový olej na dresink","2 stroužky česneku","2 lžíce citronové šťávy","5 lžic lahůdkového droždí","½ lžičky sladké papriky"],
+    steps: ["Čočku propláchni, vař v osolené vodě s bobkovým listem 20–25 min do měkka. Sceď a nech vychladnout.","Karotky oloupeji, cibule nakrájej na klínky. Pokapej olejem, ochu kmínem, solí a pepřem. Peč na 200 °C asi 25 min dozlatova.","Připrav oříškový dresink: slunečnicová semínka rozmixuj s vodou nebo olejem, česnekem, citronovou šťávou, lahůdkovým droždím, paprikou a solí na hladkou omáčku.","Smíchej čočku se špenátem, mátou a pečenou zeleninou.","Přelij dresinkem, zakápni citronem a ihned podávej."] },
+  { id: 31, name: "Švestková chilli omáčka", tag: "Vegan", time: "50 min", emoji: "🫙", rating: 4, source: "Nový",
+    desc: "Pikantní domácí švestková omáčka s česnekem a kořením — skvělá k masu nebo sýru.",
+    ingredients: ["1500 g švestek — nakrájených na kousky","4 stroužky česneku","200 ml octa","1 lžíce soli","skořice","mletý zázvor","¼ lžičky hřebíčku","¼ lžičky nového koření","¼ — 750 g cukru","2 chilli papričky"],
+    steps: ["Švestky nakrájej na kousky, česnek prolisuj nebo nakrájej nadrobno.","Vše dej do hrnce — švestky, česnek, ocet, sůl, skořici, zázvor, hřebíček, nové koření a cukr.","Přiveď k varu za občasného míchání, pak vař na středním ohni 30–40 min, dokud omáčka nezhoustne.","Po uvaření přidej 2 čerstvé chilli papričky (nakrájené nebo celé podle chuti pálivosti).","Přelij do sterilizovaných sklenic a uzavři. Skladuj v chladu."] },
+  { id: 32, name: "Koprovová omáčka (vegan)", tag: "Vegan", time: "25 min", emoji: "🌿", rating: 4, source: "Nový",
+    desc: "Jemná rostlinná koprovová omáčka ke knedlíkům, seitanu nebo tempehu.",
+    ingredients: ["1 větší petržel nebo pastinák","1 cibule","čerstvý kopr (lze nahradit mraženým nebo sušeným)","olej","sůl","zeleninový vývar nebo horká voda","umejocet nebo jablečný ocet na dochucení","rostlinná smetana nebo kokosové mléko (3–6 lžic)","cca 3 lžíce kukuřičného škrobu"],
+    steps: ["Cibuli a petržel nakrájej na větší kostky.","Na rozpáleném oleji orestuj cibulku, osol, po chvíli přidej petržel a za občasného míchání osmaž do měkka.","Podlij horkým vývarem nebo horkou vodou, přikryj pokličkou a pár minut dusíme do měkka.","V troše studené vody rozmíchej kukuřičný škrob.","Ponorným mixérem rozmixuj obsah hrnce, přidej smetanu nebo kokosové mléko a rozmíchaný škrob. Nech lehce povařit.","Stáhni z plotny, přidej nasekané čerstvý kopr, dochut umejoctem a jablečným octem."] },
+  { id: 33, name: "Cuketový nákyp s tempehem", tag: "Vegan", time: "60 min", emoji: "🥒", rating: 5, source: "Nový",
+    desc: "Sytný vegan nákyp z nastrouhané cukety, tempehu a semínek — pečený na 180 °C.",
+    ingredients: ["2 cukety (cca 450 g očištěné)","1 lžíce soli","2 lžíce chia semínek","2 stroužky česneku","1 balení uzeného tempehu","10 sušených rajčat + 2 lžíce oleje z nich","130 g mletých ovesných vloček","70 g špaldové celozrnné mouky"],
+    steps: ["Cukety nastrouhej nahrubo, důkladně osolíme a přidáme chia semínka.","Promíchej a nech 10 minut odstát, aby cuketa pustila vodu a chia semínka nabobtnala.","Přidej prolisovaný česnek, nastrouhaný tempeh, nakrájená sušená rajčata s olejem, mleté ovesné vločky a špaldovou mouku.","Promíchej důkladně, ideálně rukama, aby se vše propojilo.","Přesuň na plech s pečicím papírem a pečeme 45 minut na 180 °C dozlatova.","Podávej teplé nakrájené na plátky."] },
+  { id: 34, name: "Zelené lívance se špenátem", tag: "Vegan", time: "25 min", emoji: "🥞", rating: 5, source: "Nový",
+    desc: "Lehké špenátové lívance ze špaldové mouky se sójovým nápojem — k snídani i obědu.",
+    ingredients: ["100 g hladké špaldové mouky","100 g celozrnné špaldové mouky","1 lžíce kypřícího prášku","300 ml sójového nápoje","50 g špenátu","sůl, pepř","olej na smažení","100 g tempehu","1 avokádo","listy salátu, klíčky","hrst mandlí","konopná semínka"],
+    steps: ["V misce smíchej obě mouky, kypřící prášek, sůl a pepř.","Špenát rozmixuj společně se sójovým nápojem na hladkou zelenou tekutinu.","Promíchej se sypkou směsí do hladkého těsta. Nech 5 minut odstát.","Rozehřej olej na pánvi, naléváme lžící těsto a smažíme lívance z každé strany 2–3 min.","Tempeh nakrájej na plátky a opeč na pánvi dozlatova.","Podávej lívance s tempehem, avokádem, salátem, klíčky, mandlemi a konopnými semínky."] },
+  { id: 35, name: "Pohanková sekaná", tag: "Vegan", time: "70 min", emoji: "🌾", rating: 5, source: "Nový",
+    desc: "Výživná vegan sekaná z pohanky, žampionů a kysaného zelí — pečená dozlatova.",
+    ingredients: ["200 g pohanky (celé kroupy)","2 cibule","2 stroužky česneku","200 g žampionů","150 g kysaného zelí","2 lžíce plnotučné hořčice","2 lžíce mletého lněného semínka","2 lžíce lahůdkového droždí","sůl, pepř, olej","bramborová kaše a dušené zelí k podávání"],
+    steps: ["Pohanku uvař v dvojnásobném množství vody (400 ml) do měkka, cca 15 minut.","Cibuli, česnek a žampióny nakrájej, osmaž na oleji do zlatova.","Tuto směs nahrubo rozmixuj společně s pohankou, zelím a hořčicí.","Přidej mleté lněné semínko, lahůdkové droždí, sůl a pepř. Promíchej.","Přendej na plech s pečicím papírem a vlhkýma rukama vytvaruj šišku, potři olejem.","Peč v předem vyhřáté troubě 40–50 minut na 180 °C dozlatova. Podávej s bramborovou kaší a dušeným zelím."] },
+  { id: 36, name: "Ořechový koláč s banánem", tag: "Dezerty", time: "45 min", emoji: "🍌", rating: 5, source: "Nový",
+    desc: "Rychlý vlhký koláč z banánů, vloček a ořechů s čokoládovou polevou.",
+    ingredients: ["2 zralé banány","1 lžíce skořice","5 hrstí vlašských ořechů","1 pomeranč (šťáva)","2 lžíce medu","mouka dle potřeby","1 vejce","2 lžíce kokosového oleje","hořká čokoláda na polevu"],
+    steps: ["Vločky a ořechy rozmixuj nahrubo, pak přidej prášek do pečiva.","Banány rozmixuj na kaši spolu se skořicí, medem, vejcem a trochou mouky. Těsto je řidší, ale ne tekuté.","Naplň formu a peč na 160 °C cca 35 minut.","Poleva: 2 lžíce kokosového oleje rozpusť a přidej nalámanou hořkou čokoládu, míchej do hladka.","Vychladlý koláč polij polevou a posyp ořechy."] },
+  { id: 37, name: "Proteinové tyčinky", tag: "Dezerty", time: "20 min", emoji: "💪", rating: 5, source: "Nový",
+    desc: "No-bake tyčinky z datlí, arašídového másla a proteinu — polité čokoládou.",
+    ingredients: ["250 g datlí nebo datlové pasty","3 lžíce javorového sirupu","120 g arašídového másla","90 g proteinu (vanilka nebo bez příchutě)","špetka soli","čokoláda na polití","sůl"],
+    steps: ["Datle rozmixuj na hladkou pastu (pokud jsou suché, namočí je 10 min ve vodě).","Přidej javorový sirup, arašídové máslo, protein a špetku soli. Vše rozmixuj nebo smíchej dohromady.","Hmotu namačkej do formy vyložené pečicím papírem, zarovnej.","Nech chvíli odpočinout v lednici — alespoň 30 minut.","Čokoládu rozpusť, polij tyčinky. Posyp trochou soli.","Nakrájej na libovolné tvary a skladuj v lednici."] },
+  { id: 38, name: "Semínkové krekry", tag: "Dezerty", time: "45 min", emoji: "🌰", rating: 4, source: "Nový",
+    desc: "Křupavé bezlepkové krekry ze směsi semínek — skvělé k dipům nebo sýru.",
+    ingredients: ["100 ml chia semínek","100 ml slunečnicových semínek","100 ml lněných semínek","100 ml tykvových semínek","100 ml sezamových semínek","400 ml vody","½ lžičky soli","½ lžičky sušeného česneku","½ lžičky sušené cibule","½ lžičky sušených bylinek (např. provensálská směs)","½ lžičky chilli vloček (lze vynechat)"],
+    steps: ["Všechna semínka smíchej v míse, zalij 400 ml vody a přidej všechno koření.","Důkladně promíchej a nech 15–20 minut nabobtnout, dokud nevznikne hustá gelová hmota.","Plech vylož pečicím papírem, hmotu rovnoměrně rozetři na tenkou vrstvu (cca 3–4 mm).","Peč na 160 °C asi 40–45 minut. V polovině pečení přeřízni na krekry a obrať.","Nech úplně vychladnout — krekry jsou křupavé až po vychladnutí.","Skladuj v uzavřené nádobě při pokojové teplotě."] },
+  { id: 39, name: "Čokoládová quinoa na sladko", tag: "Dezerty", time: "25 min", emoji: "🍫", rating: 4, source: "Nový",
+    desc: "Creamy snídaňová nebo dezertní quinoa s hořkou čokoládou a javorovým sirupem.",
+    ingredients: ["100 g quinoy","350 ml sójového vanilkového nápoje","60 g hořké čokolády","2 lžíce javorového sirupu","špetka soli","ovoce a ořechy k servírování"],
+    steps: ["Quinou spař horkou vodou, poté ji zalij sójovým nápojem a vař přibližně 15 minut na mírném stupni do měkka.","Nahrubo rozmixuj ponorným mixérem nebo vidličkou.","Rozpusť v ní nalámanou čokoládu, přislaď javorovým sirupem a dochut špetkou soli.","Na talíři ozdobí čerstvým ovocem a ořechy.","Podávej teplé nebo vychladlé jako dezert."] },
+
+  { id: 40, name: "Čokoládové brownies", tag: "Dezerty", time: "30 min", emoji: "🍫", rating: 5, source: "Nový",
+    desc: "Klasické hutné brownies z hořké čokolády a špaldové mouky — na povrchu popraskané.",
+    ingredients: ["120 g kvalitní hořké čokolády (70% kakaa)","3 vejce vel. M","130 g třtinového cukru","1 lžička vanilkového extraktu","85 g másla (rozpuštěného)","3 lžíce holandského kakaa","55 g celozrnné špaldové mouky hladké","sůl"],
+    steps: ["Předehřej troubu na 180–185 °C, menší pekáč (20×25 cm) vyloži pečicím papírem.","Čokoládu nakrájej najemno.","Do větší mísy rozklepni vejce, přidej třtinový cukr, vanilkový extrakt, rozpuštěné máslo a špetku soli. Vše vyšlehej do pěny.","Přidej kakao, špaldovou mouku a najemno nakrájenou čokoládu. Promíchej a přelij do pekáče.","Peč 25 minut při 180–190 °C. Hotové brownies jsou na povrchu popraskané.","Nakrájej na kostičky a podávej. Pro mazlavější konzistenci peč o 5–10 minut méně."] },
+  { id: 41, name: "Čokoládové muffiny z tvarohového těsta", tag: "Dezerty", time: "30 min", emoji: "🧁", rating: 5, source: "Nový",
+    desc: "Vláčné čokoládové muffiny s tvarohem a kokosovým olejem — jednoduchá příprava za 30 minut.",
+    ingredients: ["80 g kvalitní hořké čokolády (80% kakaa)","250 g bílé špaldové mouky hladké","2 lžičky kypřícího prášku do pečiva","2 lžíce holandského kakaa","70 g kokosového oleje (rozpuštěného)","30 g třtinového cukru","1 vejce vel. M","300 ml polotučného mléka","120 g polotučného tvarohu"],
+    steps: ["Předehřej troubu na 180–185 °C, formu na muffiny vyloži papírovými košíčky.","Hořkou čokoládu nakrájej najemno a vloži do větší mísy.","Do mísy přidej špaldovou mouku, prášek do pečiva, holandské kakao, rozpuštěný kokosový olej, třtinový cukr, vejce, mléko a tvaroh. Vše smíchej a pomocí vařečky vypracuj hladké těsto.","Těsto rozděl do košíčků — naplň je zhruba do ¾.","Peč 20–23 minut při 180–185 °C.","Hotové muffiny nech alespoň 10 minut vychladnout před podáváním."] },
+  { id: 42, name: "Strouhaný koláč s tvarohovou náplní", tag: "Dezerty", time: "50 min", emoji: "🍰", rating: 5, source: "Nový",
+    desc: "Jemný koláč se strouhaným těstem a vláčnou tvarohovou náplní — vydrží 3–4 dny v lednici.",
+    ingredients: ["180 g bílé špaldové mouky hladké","40 g medu","50 ml polotučného mléka","2 žloutky","2 lžíce holandského kakaa","80 g kokosového oleje v tekutém stavu","350 g polotučného tvarohu","2 žloutky (do náplně)","40 g medu (do náplně)","1 lžíce vanilkového extraktu"],
+    steps: ["Předehřej troubu na 190–195 °C, pekáč 20×30 cm vyloži pečicím papírem.","Ve větší misce smíchej mouku, med, mléko, 2 žloutky, kakao a kokosový olej. Vytvoř pevné nelepivé těsto. Zabal do potravinové fólie a vlož na 10 minut do mrazáku.","Mezitím smíchej tvaroh, 2 žloutky, med a vanilkový extrakt na hladkou náplň.","Těsto vyjmi z mrazáku, rozděl na poloviny. První polovinu nastrouhej na hrubém struhadle na dno pekáče a lehce přitlač.","Rovnoměrně rozlož tvarohovou náplň a nastrouhal druhou polovinu těsta navrch.","Peč 22–25 minut na 190–195 °C. Nech alespoň 30 minut vychladnout před krájením."] },
+  { id: 43, name: "Tvarohová buchta", tag: "Dezerty", time: "35 min", emoji: "🍮", rating: 5, source: "Nový",
+    desc: "Rychlá mramorovaná buchta z celozrnné špaldové mouky a tvarohu z alobalu — 15 porcí.",
+    ingredients: ["380 g celozrnné špaldové mouky hladké","1 lžíce kypřícího prášku do pečiva","3 lžíce holandského kakaa","60 g třtinového cukru","4 vejce vel. M","4 lžíce slunečnicového oleje","450 ml polotučného mléka","500 g polotučného tvarohu z alobalu","1 lžička vanilkového extraktu"],
+    steps: ["Předehřej troubu na 180–190 °C, pekáč 30×40 cm vyloži pečicím papírem.","Do mísy prosej mouku, přidej prášek do pečiva, kakao a cukr. Promíchej. Přidej 2 vejce, olej, 300 ml mléka a vše důkladně promíchej na hladké těsto. Naléj do pekáče.","V druhé míse vyšlehej tvaroh, vanilkový extrakt, 2 vejce a 150 ml mléka.","Tvarohovou směs nanáší lžící na těsto v pekáči a rozetři po celém těstě. Pohybuj lžící do tvaru kříže pro mramorování.","Peč 25 minut na 180–190 °C. Nakrájej na 15 kusů a podávej."] },
+  { id: 44, name: "Cuketové bramboráky", tag: "Vegan", time: "27 min", emoji: "🥒", rating: 5, source: "Nový",
+    desc: "Lehké cuketové placky s ovesnými vločkami — smažené nebo pečené v troubě.",
+    ingredients: ["400 g cukety","2 vejce vel. M","1 lžička sušené majoránky","2 stroužky česneku (utřené)","100 g jemných ovesných vloček","2 lžíce slunečnicového oleje","sůl","pepř"],
+    steps: ["Cuketu omyj a nastrouhej nahrubo. Přesuň do cedníku a pomocí dlaně zmáčkni — odstraň přebytečnou vodu.","Takto připravenou cuketu vlož do mísy a přidej vejce, majoránku, česnek, vločky, olej, sůl a pepř. Důkladně promíchej.","Ze vzniklého těsta vytvaruj placky o průměru 7–9 cm.","Rozpal nepřilnavou pánev, přidej olej a bramboráky opékej na středním plameni 2–3 minuty z každé strany dozlatova.","Tip: Pro zdravější variantu peč v troubě 17–19 minut na 200–210 °C.","Podávej s dipem ze zakysané smetany nebo s pažitkou."] },
+  { id: 45, name: "Dušený losos se sójovou omáčkou", tag: "Ryby", time: "28 min", emoji: "🐟", rating: 5, source: "Nový",
+    desc: "Šťavnatý losos marinovaný v medu, sójové omáčce a zázvoru — pečený v alobalu.",
+    ingredients: ["1 stroužek česneku","5 g čerstvého zázvoru (nebo ½ lžičky sušeného)","2 g čerstvých chilli papriček","šťáva z 1 limetky","1 lžíce medu","4 lžíce sójové omáčky","400 g lososa (3 menší filety)","150 g jarní cibulky"],
+    steps: ["Předehřej troubu na 190–195 °C, připrav arch alobalu 30×50 cm.","Připrav marinádu: česnek a zázvor nastrouhej najemno, chilli nakrájej najemno. Smíchej se šťávou z limetky, medem a sójovou omáčkou.","Filety z lososa důkladně obal v marinádě a nech alespoň 5 minut marinovat.","Jarní cibulku omyj, rozkrájej na 3 díly a naskládej na střed alobalu.","Na jarní cibulku polož filety z lososa, přilij zbylou marinádu. Zabal do alobalu.","Peč 15–18 minut při 190–195 °C. Před podáváním lze posypat sezamovými semínky a koriandrem."] },
+  { id: 46, name: "Kuřecí řízky v kukuřičné strouhance s parmazánem", tag: "Kuřecí", time: "28 min", emoji: "🍗", rating: 5, source: "Nový",
+    desc: "Křupavé kuřecí řízky obalené v kukuřičné strouhance s parmazánem — pečené v troubě.",
+    ingredients: ["400 g kuřecích prsou","80 g kukuřičné strouhanky","40 g strouhaného parmazánu","150 g bílého řeckého jogurtu (0% tuku)","1 lžíce olivového oleje","2 lžíce citronové šťávy","1 lžíce medu","100 g libovolného listového salátu","sůl","pepř"],
+    steps: ["Předehřej troubu na 200–210 °C, plech vyloži pečicím papírem.","Kuřecí prsa omyj, osuš, osolte a opepřete.","Připrav 2 hluboké talíře — do jednoho nasypej kukuřičnou strouhanku smíchanou s parmazánem, do druhého vloži řecký jogurt.","Kuřecí prsa obalte nejprve v řeckém jogurtu, pak v strouhance s parmazánem. Odkládej na plech.","Peč 16–18 minut na 200–210 °C dozlatova.","Dresink: smíchej olivový olej, citronovou šťávu a med. Smíchej se salátem a podávej spolu s řízky."] },
+  { id: 47, name: "Parmazánové kuře", tag: "Kuřecí", time: "31 min", emoji: "🧀", rating: 5, source: "Nový",
+    desc: "Kuřecí prsa zapečená s rajčatovou omáčkou, mozzarellou a parmazánem.",
+    ingredients: ["2 lžíce olivového oleje","300 g kuřecích prsou","70 g bílé cibule (nakrájené najemno)","1 lžíce třtinového cukru","500 g loupaných krájených rajčat","1 lžička sušeného oregana","150 g mozzarelly (nakrájené na plátky)","70 g strouhaného parmazánu","sůl","pepř"],
+    steps: ["Předehřej troubu na 200–210 °C, připrav zapékací nádobu 30×40 cm.","Kuřecí prsa omyj, očistit, osol a opepři.","Na pánvi rozehřej 1 lžíci oleje, opékej kuřecí prsa 2–3 minuty z každé strany. Odlož stranou.","Na stejné pánvi rozehřej druhou lžíci oleje, přidej cibuli a opékej 2 minuty. Přidej třtinový cukr, rajčata, oregano, sůl a pepř. Vař 3–4 minuty.","Rajčatovou směs přemísti do zapékací nádoby. Polož na ni opečená kuřecí prsa, přidej plátky mozzarelly a posyp parmazánem.","Zapékej 13–15 minut při 200–210 °C. Před podáváním lze posypat čerstvou bazalkou."] },
+  { id: 48, name: "Pečený losos s bylinkovým kuskusem", tag: "Ryby", time: "27 min", emoji: "🐟", rating: 5, source: "Nový",
+    desc: "Filety z lososa pečené na bylinkovém celozrnném kuskusu se smetanou a citronem.",
+    ingredients: ["150 g celozrnného kuskusu (v suchém stavu)","2 lžíce čerstvé máty (nasekané nahrubo)","2 lžíce čerstvé hladkolisté petrželové natě (nasekané)","kůra a šťáva z 1 středního citronu","1 lžíce sušené bazalky","70 ml smetany na vaření (12% tuku)","450 g čerstvého lososa (3 filety)","sůl","pepř"],
+    steps: ["Předehřej troubu na 180–185 °C, připrav zapékací nádobu 20×30 cm.","Kuskus připrav dle instrukcí na obalu.","Hotový kuskus smíchej s mátou, petrželovou natí, kůrou a šťávou z citronu, bazalkou, smetanou, solí a pepřem. Přesyp do zapékací nádoby.","Na kuskus polož filety z lososa kůží nahoru.","Peč 15–17 minut na 180–185 °C.","Po upečení rozděl na porce a podávej s měsíčkem citronu a čerstvou bylinkou."] },
+  { id: 49, name: "Rýžové nudle s kuřecím masem a kari", tag: "Kuřecí", time: "18 min", emoji: "🍜", rating: 5, source: "Nový",
+    desc: "Rychlý asijský wok s kuřecím masem, mrkví, paprikou a rýžovými nudlemi.",
+    ingredients: ["200 g vlasových rýžových nudlí (v suchém stavu)","1 lžíce olivového oleje","400 g kuřecích prsou (nakrájených na tenké nudličky)","120 g červené cibule (nakrájené na měsíčky)","2 stroužky česneku (nasekané najemno)","150 g zelené papriky (nakrájené na tenké proužky)","120 g mrkve (nakrájené na tenké nudličky)","1 lžíce kari koření","100 ml vody","2 lžíce sójové omáčky","sůl","pepř"],
+    steps: ["V hrnci uvaří rýžové nudle dle instrukcí na obalu, sceď a zchlaď ve studené vodě.","Na pánvi rozehřej olej na vysokém plameni. Vlož kuřecí maso nakrájené na nudličky a zprudka opékej 1–2 minuty.","Zl um plamen na střední, přidej cibuli, česnek, papriku a mrkev. Opékej 2–3 minuty.","Osolíme, opepříme, přidej kari koření, vodu a sójovou omáčku. Vař 3–4 minuty na mírném plameni.","Přidej rýžové nudle a krátce prohřej. Rozděl do 4 talířů.","Podávej posypané bílým sezamem, nahrubo natrhaným koriandrem a chilli papričkou."] },
+  { id: 50, name: "Kuřecí směs s kokosovým mlékem", tag: "Kuřecí", time: "48 min", emoji: "🥥", rating: 5, source: "Nový",
+    desc: "Sytná kuřecí směs s mrkví, paprikou, žampióny a kokosovým mlékem — skvělá s rýží basmati.",
+    ingredients: ["500 g kuřecích prsou","200 g mrkve","200 g zelené papriky","200 g žampionů","2 lžíce slunečnicového oleje","150 g bílé cibule (nakrájené najemno)","2 lžíce kari koření","400 g drcených rajčat z plechovky","400 ml kokosového mléka","sůl","pepř"],
+    steps: ["Kuřecí maso nakrájej na nudličky. Mrkev na tenká kolečka, papriku na větší kostky, žampiony na čtvrtky.","V hluboké pánvi rozpal olej na středním plameni. Přidej cibuli a restuj 3–4 minuty.","Přidej kuřecí maso, žampiony, papriku, mrkev, kari koření, sůl a pepř. Restuj dalších 4–5 minut.","Zlum plamen na mírný, přidej rajčata a kokosové mléko. Přikryj pokličkou a vař 25–27 minut.","Dle potřeby dochut a podávej s rýží basmati.","Tip: Lze zamrazit — v mrazáku vydrží 3–4 měsíce."] },
+  { id: 51, name: "Citronová linecká vajíčka", tag: "Dezerty", time: "90 min", emoji: "🍋", rating: 5, source: "Nový",
+    desc: "Křehká linecká vajíčka plněná domácím citronovým lemon curdem — cca 25 ks.",
+    ingredients: ["200 g hladké špaldové mouky","125 g rostlinného tuku","50 g moučkového cukru","1 lžíce mleté vanilky","1 lžíce vanilkového pudinku","1 lžíce citronové kůry","100 g cukru krystal","1 balení citronového cukru","10 g vanilkového pudinku (lemon curd)","100 ml rostlinného mléka","50 ml citronové šťávy","2 lžíce citronové kůry (lemon curd)","špetka kurkumy"],
+    steps: ["Tuk vyjmi z ledničky hodinu předem a nech při pokojové teplotě. Mouku prosej přes síto.","Smíchej mouku, tuk, moučkový cukr, vanilku, pudink a citronovou kůru. Vypracuj hladké těsto, které drží pohromadě a nelepí se. Zabal do fólie a nech přes noc uležet v lednici.","Připrav lemon curd: smíchej cukr krystal, citronový cukr, vanilkový pudink, rostlinné mléko, citronovou šťávu, citronovou kůru a kurkumu. Promíchej metličkou a dej na plotnu.","Za stálého míchání povaři 1 minutu od začátku bublání. Nech zcela vychladnout.","Těsto vyválejí a vykrájej vajíčka. Peč jeden plech celých vajíček a druhý s dírkou — 170 °C, cca 10 minut, dokud nezačnou zlatnout.","Spodní vajíčka (celá) potři lemon curdem a přilož vrchní (s dírkou). Vrchní část lze pocukrovat moučkovým cukrem."] },
+  { id: 52, name: "Rychlé zdravé brownies", tag: "Dezerty", time: "30 min", emoji: "🍫", rating: 5, source: "Nový",
+    desc: "Ultrarychlé 4-surovinové brownies z jablek, vajec, kakaa a medu — bez mouky.",
+    ingredients: ["2 jablka","2 vejce","2 lžíce kakaa","2 lžičky medu"],
+    steps: ["Předehřej troubu na 190 °C.","Jablka oloupeji a nastrouhej nebo rozmixuj na hladkou kaši.","Smíchej jablečnou kaši s vejci, kakaem a medem. Důkladně promíchej na hladké těsto.","Přelij do malé formy vyložené pečicím papírem.","Peč cca 25 minut na 190 °C.","Nech vychladnout a nakrájej na kostičky."] },
+
+  { id: 53, name: "Boloňská omáčka", tag: "Hovězí", time: "45 min", emoji: "🍝", rating: 5, source: "Nový",
+    desc: "Klasická italská boloňská omáčka z mletého hovězího s rajčaty — skvělá na těstoviny nebo lasagne.",
+    ingredients: ["500 g mletého hovězího masa","1 cibule","3 stroužky česneku","2 mrkve","2 řapíkatý celer","400 g drcených rajčat z plechovky","2 lžíce rajčatového protlaku","150 ml červeného vína (nebo vývaru)","1 lžička sušeného oregana","1 lžička sušené bazalky","2 lžíce olivového oleje","sůl","pepř","těstoviny nebo lasagne k podávání"],
+    steps: ["Cibuli, česnek, mrkev a celer nakrájej najemno.","Na oleji rozehřej pánev, osmaž cibuli a česnek 3 min. Přidej mrkev a celer, restuj dalších 5 min.","Přidej mleté maso a za stálého míchání opékej dokud nezhnědne.","Vlij víno, nech 2 min odpařit. Přidej rajčata, protlak, oregano, bazalku, sůl a pepř.","Vař na mírném plameni 25–30 min bez pokličky, dokud omáčka nezhoustne.","Podávej s těstovinami, posyp parmazánem."] },
+
+  { id: 54, name: "Hovězí guláš", tag: "Hovězí", time: "90 min", emoji: "🥘", rating: 5, source: "Nový",
+    desc: "Poctivý český hovězí guláš s knedlíkem — pomalé dušení pro nejlepší chuť.",
+    ingredients: ["800 g hovězího masa (kližka nebo plec)","3 cibule","3 stroužky česneku","2 lžíce sladké papriky","1 lžička pálivé papriky","1 lžíce rajčatového protlaku","300 ml hovězího vývaru","2 lžíce sádla nebo oleje","1 lžičku kmínu","sůl","pepř","knedlíky nebo chléb k podávání"],
+    steps: ["Maso nakrájej na větší kostky (3–4 cm), osolíme a opepříme.","Na sádle osmaž nakrájenou cibuli dozlatova, přidej česnek a kmín.","Přidej maso a opékej ze všech stran dozlatova.","Vsyp papriku, rychle promíchej (paprika nesmí přihořet). Přidej protlak a vývar.","Přikryj pokličkou a dusíme na mírném plameni 60–70 min, dokud maso nezměkne.","Dle chuti zahusť a podávej s knedlíky nebo chlebem."] },
+
+  { id: 55, name: "Hovězí burger domácí", tag: "Hovězí", time: "25 min", emoji: "🍔", rating: 5, source: "Nový",
+    desc: "Šťavnaté domácí burgery z mletého hovězího s čerstvou zeleninou a domácí omáčkou.",
+    ingredients: ["600 g mletého hovězího (min 15% tuku)","1 lžička worcestershire omáčky","1 lžička hořčice","1 lžička česnekového prášku","sůl","pepř","4 bulky na burger","4 plátky sýru (cheddar nebo eidam)","hlávkový salát","2 rajčata","1 červená cibule","kečup, majonéza"],
+    steps: ["Mleté maso smíchej s worcestershire omáčkou, hořčicí, česnековým práškem, solí a pepřem.","Vytvaruj 4 burgery o průměru cca 10 cm. Uprostřed každého udělej malou prohlubeň prstem — zabrání vydutí.","Rozehřej pánev nebo gril na vysokou teplotu. Opékej burgery 3–4 min z každé strany.","Minutu před koncem položit na každý burger plátek sýru a přikryj pokličkou.","Bulky přepůlíme a opéct na suché pánvi.","Sestav burgery — omáčka, salát, rajče, cibule, burger. Podávej ihned."] },
+
+  { id: 56, name: "Hovězí vývar", tag: "Polévky", time: "120 min", emoji: "🍲", rating: 5, source: "Nový",
+    desc: "Zlatý domácí hovězí vývar — základ dobrých polévek, omáček i rizota.",
+    ingredients: ["1 kg hovězích kostí nebo kližky","2 mrkve","1 petržel","¼ celeru","1 cibule","3 stroužky česneku","1 bobkový list","5 kuliček pepře","5 kuliček nového koření","sůl","svazek petrželové natě"],
+    steps: ["Kosti nebo maso krátce opeč v troubě na 200 °C (20 min) — vývar bude tmavší a chutnější.","Vše přesuň do velkého hrnce, zalij 2,5 l studené vody.","Pomalu přiveď k varu, sbírej pěnu z povrchu.","Přidej zeleninu, koření a bobkový list. Vař na velmi mírném plameni 90–100 min.","Přeceď přes jemné síto. Osolíme dle chuti.","Použij ihned nebo nech vychladnout a uskladni v lednici až 5 dní, nebo zamraz."] },
+
+  { id: 57, name: "Svíčková na smetaně", tag: "Hovězí", time: "150 min", emoji: "🥩", rating: 5, source: "Nový",
+    desc: "Tradiční česká svíčková — hovězí maso dušené v kořenové zelenině se smetanovou omáčkou.",
+    ingredients: ["800 g hovězí svíčkové nebo vrchního šálu","2 mrkve","1 petržel","¼ celeru","2 cibule","3 stroužky česneku","200 ml smetany ke šlehání","100 ml červeného vína","3 lžíce másla","2 lžíce rajčatového protlaku","bobkový list","nové koření","sůl","pepř","knedlíky a brusinky k podávání"],
+    steps: ["Maso osolímes a opepříme, ze všech stran opékej na másle dozlatova.","Zeleninu nakrájej na kostky, osmaž na másle do zlatova. Přidej prolisovaný česnek.","Přidej maso, víno, protlak, bobkový list a nové koření. Podlij vodou aby bylo maso zakryté.","Dusíme pod pokličkou na mírném ohni 90–120 min (nebo v troubě na 160 °C).","Maso vyjmi, zeleninu s výpekem rozmixuj tyčovým mixérem na hladkou omáčku.","Vmíchej smetanu, dochuť solí a pepřem. Nakrájej maso na plátky, podávej s omáčkou, knedlíky a brusinkami."] },
+
+  { id: 58, name: "Vepřová panenka s hořčičnou omáčkou", tag: "Vepřové", time: "35 min", emoji: "🍖", rating: 5, source: "Nový",
+    desc: "Šťavnatá vepřová panenka v jemné smetanovo-hořčičné omáčce — bez hub, vhodné pro děti.",
+    ingredients: ["600 g vepřové panenky","2 lžíce hořčice (plnotučné)","200 ml smetany na vaření","1 cibule","2 stroužky česneku","1 lžíce másla","1 lžíce olivového oleje","1 lžička tymiánu","sůl","pepř","brambory nebo rýže k podávání"],
+    steps: ["Panenku osuš, osolíms a opepříme. Nakrájej na medailonky silné cca 2 cm.","Na pánvi rozehřej máslo s olejem. Medailonky opékej 2–3 min z každé strany dozlatova. Odlož stranou.","Na stejné pánvi osmaž nakrájenou cibuli a česnek 3 min.","Přidej hořčici, tymián a smetanu. Míchej a vař 3–4 min dokud omáčka lehce nezhoustne.","Vrať maso do omáčky, prohřej 2 min. Dochuť solí a pepřem.","Podávej s bramborami nebo rýží."] },
+
+  { id: 59, name: "Zapečené vepřové s brambory", tag: "Vepřové", time: "75 min", emoji: "🥔", rating: 5, source: "Nový",
+    desc: "Jednoduchý pekáč — vepřové maso s brambory a bylinkami zapečené v troubě.",
+    ingredients: ["600 g vepřového boku nebo plece","800 g brambor","2 cibule","4 stroužky česneku","2 lžíce olivového oleje","1 lžička sladké papriky","1 lžička rozmarýnu","1 lžička tymiánu","sůl","pepř"],
+    steps: ["Předehřej troubu na 180 °C.","Brambory oloupeji a nakrájej na klínky, cibuli na půlkolečka.","Maso nakrájej na větší kusy, ochu solí, pepřem, paprikou, rozmarýnem a tymiánem.","V pekáči smíchej brambory, cibuli a česnek s olejem, solí a pepřem. Navrch polož maso.","Zakryj alobalem a peč 45 min. Odstraň alobal a peč dalších 15–20 min dozlatova.","Podávej přímo z pekáče."] },
+
+  { id: 60, name: "Kuřecí polévka s nudlemi", tag: "Polévky", time: "45 min", emoji: "🍜", rating: 5, source: "Nový",
+    desc: "Hřejivá domácí kuřecí polévka s nudlemi a zeleninou — klasika na každý týden.",
+    ingredients: ["2 kuřecí stehna nebo prsa","2 mrkve","1 petržel","¼ celeru","1 cibule","2 stroužky česneku","100 g nudlí (vlasové nebo polévkové)","bobkový list","nové koření","sůl","pepř","čerstvá petrželová nať"],
+    steps: ["Kuřecí maso vloži do hrnce, zalij 1,5 l studené vody. Přiveď k varu, sbírej pěnu.","Přidej nakrájenou zeleninu, celou cibuli, česnek, bobkový list a nové koření.","Vař na mírném plameni 30–35 min.","Vyjmi maso, nech vychladnout. Zeleninu vyjmi, nakrájej na kostičky.","Maso odkosteji a nakrájej na kousky. Vrať maso i zeleninu do vývaru.","Přidej nudle, vař 5–7 min. Osolíme, opepříme, posyp petrželkou."] },
+
+  { id: 61, name: "Kuřecí wrapy", tag: "Kuřecí", time: "20 min", emoji: "🌯", rating: 5, source: "Nový",
+    desc: "Rychlé a sytné wrapy s kuřecím masem, zeleninou a jogurtovou omáčkou.",
+    ingredients: ["400 g kuřecích prsou","4 tortilly","150 g řeckého jogurtu","1 lžíce citronové šťávy","1 lžička česnekového prášku","1 lžička papriky","hlávkový salát","2 rajčata","1 avokádo","1 červená cibule","olivový olej","sůl","pepř"],
+    steps: ["Kuřecí prsa nakrájej na tenké proužky, ochu solí, pepřem a paprikou.","Na rozehřáté pánvi s olejem opékej kuřecí proužky 5–6 min dozlatova.","Smíchej řecký jogurt s citronovou šťávou, česnековým práškem, solí a pepřem.","Tortilly krátce ohřej na suché pánvi nebo v mikrovlnné troubě.","Na každou tortillu rozmaži jogurtovou omáčku, přidej salát, rajče, avokádo, cibuli a kuřecí maso.","Zaroluj pevně a podávej ihned."] },
+
+  { id: 62, name: "Pečená kuřecí stehna s bylinkami", tag: "Kuřecí", time: "55 min", emoji: "🍗", rating: 5, source: "Nový",
+    desc: "Křupavá zlatavá stehna marinovaná v bylinkách a česneku — jednoduchá příprava v troubě.",
+    ingredients: ["4–6 kuřecích stehen","4 stroužky česneku","2 lžíce olivového oleje","1 lžička rozmarýnu","1 lžička tymiánu","1 lžička sladké papriky","šťáva z ½ citronu","sůl","pepř"],
+    steps: ["Předehřej troubu na 200 °C.","Smíchej olivový olej, prolisovaný česnek, rozmarýn, tymián, papriku, citronovou šťávu, sůl a pepř.","Stehna důkladně obalte v marinádě ze všech stran. Ideálně nech marinovat 30 min nebo přes noc.","Rozlož na plech vyložený pečicím papírem kůží nahoru.","Peč 40–45 min na 200 °C, dokud kůže není zlatavá a křupavá.","Podávej s bramborami, salátem nebo pečenou zeleninou."] },
+
+  { id: 63, name: "Rajčatová polévka", tag: "Polévky", time: "30 min", emoji: "🍅", rating: 5, source: "Nový",
+    desc: "Krémová rajčatová polévka s bazalkou — jednoduchá, rychlá a plná chuti.",
+    ingredients: ["800 g rajčat (čerstvých nebo z plechovky)","1 cibule","3 stroužky česneku","500 ml zeleninového vývaru","100 ml kokosového mléka nebo smetany","2 lžíce olivového oleje","1 lžička sušené bazalky","1 lžičku cukru","sůl","pepř","čerstvá bazalka k podávání"],
+    steps: ["Cibuli a česnek nakrájej, osmaž na oleji 3–4 min.","Přidej rajčata (čerstvá oloupaná nebo z plechovky), cukr a bazalku. Vař 10 min.","Přilij vývar a vař dalších 10 min.","Rozmixuj tyčovým mixérem na hladkou polévku.","Vmíchej kokosové mléko nebo smetanu, dochuť solí a pepřem.","Podávej s čerstvou bazalkou a křupavým pečivem."] },
+
+  { id: 64, name: "Gulášová polévka", tag: "Polévky", time: "60 min", emoji: "🍲", rating: 5, source: "Nový",
+    desc: "Hustá gulášová polévka s hovězím masem a brambory — poctivé jídlo v misce.",
+    ingredients: ["400 g hovězího masa (kližka)","3 brambory","2 cibule","2 stroužky česneku","2 lžíce sladké papriky","1 lžička kmínu","1 lžíce rajčatového protlaku","1,5 l hovězího vývaru","2 lžíce oleje","bobkový list","sůl","pepř"],
+    steps: ["Maso nakrájej na drobné kostičky, cibuli nadrobno.","Na oleji osmaž cibuli dozlatova, přidej česnek a kmín.","Přidej maso, opékej 5 min. Vsyp papriku, rychle promíchej.","Přidej protlak, vývar, bobkový list. Vař 30 min.","Přidej nakrájené brambory na kostičky, vař dalších 15 min doměkka.","Dochuť solí a pepřem. Podávej s chlebem."] },
+
+  { id: 65, name: "Těstoviny carbonara", tag: "Vepřové", time: "25 min", emoji: "🍝", rating: 5, source: "Nový",
+    desc: "Klasická římská carbonara s pancettou, vejci a parmazánem — bez smetany.",
+    ingredients: ["400 g špaget nebo rigatoni","200 g pancetty nebo slaniny","4 žloutky","1 celé vejce","80 g strouhaného parmazánu","2 stroužky česneku","černý pepř (hodně)","sůl"],
+    steps: ["Uvař těstoviny v hodně osolené vodě al dente. Odlož 200 ml vody od těstovin.","Pancettu nakrájej na kostičky, opékej na suché pánvi s česnekem dozlatova. Česnek vyjmi.","Ve misce smíchej žloutky, celé vejce a parmazán. Přidej hodně čerstvě mletého pepře.","Uvařené těstoviny přidej k pancettě (pánev odstavime z ohně!).","Přilij vejcovou směs a rychle míchej. Přidávej vodu od těstovin po lžících — vznikne krémová omáčka.","Podávej ihned, posyp parmazánem a pepřem."] },
+
+  { id: 66, name: "Těstoviny pesto", tag: "Vegan", time: "15 min", emoji: "🌿", rating: 5, source: "Nový",
+    desc: "Rychlé těstoviny s domácím bazalkovým pestem — hotové za 15 minut.",
+    ingredients: ["400 g těstovin (penne nebo fusilli)","velký svazek čerstvé bazalky","50 g piniových oříšků nebo kešú","2 stroužky česneku","80 ml olivového oleje","40 g strouhaného parmazánu (nebo kvasnicových vloček)","šťáva z ½ citronu","sůl","pepř"],
+    steps: ["Uvař těstoviny v osolené vodě dle návodu.","Bazalku, oříšky, česnek a olivový olej rozmixuj tyčovým mixérem nebo v mixéru na hladké pesto.","Vmíchej parmazán, citronovou šťávu, sůl a pepř.","Uvařené těstoviny sceď, vrať do hrnce.","Smíchej s pestem — přidej trochu vody od těstovin pro lepší konzistenci.","Podávej ihned, případně posyp extra parmazánem."] },
+
+  { id: 67, name: "Treska na másle s citronem", tag: "Ryby", time: "20 min", emoji: "🐟", rating: 5, source: "Nový",
+    desc: "Jemná treska opečená na másle s citronem a kapary — hotová za 20 minut.",
+    ingredients: ["4 filety tresky (cca 600 g)","3 lžíce másla","2 stroužky česneku","šťáva a kůra z 1 citronu","2 lžíce kapary (volitelné)","čerstvá petržel","sůl","pepř","olivový olej"],
+    steps: ["Filety tresky osuš papírovou utěrkou, osolíme a opepříme.","Na pánvi rozehřej lžíci oleje a lžíci másla na středním plameni.","Filety opékej 3–4 min z každé strany dozlatova. Vyjmi a odlož.","Na stejné pánvi osmaž česnek 1 min. Přidej zbylé máslo, citronovou šťávu a kůru.","Přidej kapary, nech omáčku 1 min probublat.","Polij filety omáčkou, posyp petrželkou. Podávej s brambory nebo salátem."] },
+
+  { id: 68, name: "Vepřová panenka s citronovou omáčkou", tag: "Vepřové", time: "30 min", emoji: "🍋", rating: 5, source: "Nový",
+    desc: "Šťavnatá vepřová panenka v jemné smetanovo-citronové omáčce — svěží a lehká.",
+    ingredients: ["600 g vepřové panenky","200 ml smetany na vaření","šťáva a kůra z 1 citronu","2 stroužky česneku","1 lžíce másla","1 lžíce olivového oleje","1 lžičku tymiánu","sůl","pepř","rýže nebo brambory k podávání"],
+    steps: ["Panenku osuš, osolíms a opepříme. Nakrájej na medailonky silné cca 2 cm.","Na pánvi rozehřej máslo s olejem. Medailonky opékej 2–3 min z každé strany dozlatova. Odlož stranou.","Na stejné pánvi osmaž prolisovaný česnek 1 min.","Přidej smetanu, citronovou šťávu, kůru a tymián. Míchej a vař 3–4 min dokud omáčka lehce nezhoustne.","Vrať maso do omáčky, prohřej 2 min. Dochuť solí a pepřem.","Podávej s rýží nebo brambory."] },
+
+  { id: 69, name: "Vepřová panenka s jablečnou omáčkou", tag: "Vepřové", time: "35 min", emoji: "🍎", rating: 5, source: "Nový",
+    desc: "Vepřová panenka s jemnou sladkokyselou jablečno-hořčičnou omáčkou — oblíbená u celé rodiny.",
+    ingredients: ["600 g vepřové panenky","2 kyselá jablka","1 cibule","1 lžíce plnotučné hořčice","100 ml vývaru","1 lžičku cukru","1 lžíce másla","1 lžíce olivového oleje","sůl","pepř","bramborová kaše k podávání"],
+    steps: ["Panenku nakrájej na medailonky, osolíms a opepříme.","Na másle s olejem opékej medailonky 2–3 min z každé strany. Odlož stranou.","Na stejné pánvi osmaž nakrájenou cibuli dozlatova.","Přidej oloupaná jablka nakrájená na kostičky, cukr a vývar. Vař 5 min.","Vmíchej hořčici, dochuť solí a pepřem.","Vrať maso do omáčky, prohřej 2 min. Podávej s bramborovou kaší."] },
+
+  { id: 70, name: "Vepřová panenka pečená s bylinkami", tag: "Vepřové", time: "40 min", emoji: "🌿", rating: 5, source: "Nový",
+    desc: "Celá pečená vepřová panenka marinovaná v česneku a bylinkách — šťavnatá a aromatická.",
+    ingredients: ["600 g vepřové panenky (vcelku)","4 stroužky česneku","2 lžíce olivového oleje","1 lžička rozmarýnu","1 lžička tymiánu","1 lžička sladké papriky","šťáva z ½ citronu","sůl","pepř","pečená zelenina nebo brambory k podávání"],
+    steps: ["Předehřej troubu na 200 °C.","Smíchej olivový olej, prolisovaný česnek, rozmarýn, tymián, papriku, citronovou šťávu, sůl a pepř.","Panenku důkladně potři marinádou ze všech stran.","Na rozehřáté pánvi opeč panenku ze všech stran dozlatova (cca 5 min).","Přesuň na plech a peč v troubě 20–25 min na 200 °C.","Nech 5 min odpočinout, pak nakrájej na plátky a podávej."] },
+
+  { id: 71, name: "Vepřová panenka glazovaná medem a hořčicí", tag: "Vepřové", time: "35 min", emoji: "🍯", rating: 5, source: "Nový",
+    desc: "Karamelizovaná vepřová panenka s medovo-hořčičnou glazurou — sladká, lepkavá a neodolatelná.",
+    ingredients: ["600 g vepřové panenky","3 lžíce medu","2 lžíce plnotučné hořčice","2 stroužky česneku","1 lžíce sójové omáčky","1 lžíce olivového oleje","sůl","pepř","rýže nebo pečené brambory k podávání"],
+    steps: ["Předehřej troubu na 190 °C.","Smíchej med, hořčici, prolisovaný česnek a sójovou omáčku.","Panenku osolíms a opepříme. Na pánvi s olejem opeč ze všech stran dozlatova (cca 5 min).","Panenku přesuň na plech, celou potři medovo-hořčičnou glazurou.","Peč 20–25 min na 190 °C, v polovině pečení přepomazej zbývající glazurou.","Nech 5 min odpočinout, nakrájej na plátky. Podávej s rýží nebo pečenými brambory."] },
+
+  { id: 72, name: "Smažená vejce s toastem", tag: "Rychlá večeře", time: "10 min", emoji: "🍳", rating: 5, source: "Nový",
+    desc: "Klasická rychlá večeře — smažená vejce na másle s křupavým toastem a čerstvou zeleninou.",
+    ingredients: ["3–4 vejce","2 plátky toastového chleba","1 lžíce másla","sůl","pepř","cherry rajčátka nebo okurka k podávání"],
+    steps: ["Toasty vloži do toustovače nebo opeč na suché pánvi dozlatova.","Na pánvi rozehřej máslo na středním plameni.","Rozklepni vejce přímo na pánev, osolíms a opepříme.","Smažit 2–3 min podle toho jak máš ráda žloutek — měkký nebo tuhý.","Podávej s toastem a čerstvou zeleninou."] },
+
+  { id: 73, name: "Míchaná vejce se šunkou", tag: "Rychlá večeře", time: "10 min", emoji: "🥚", rating: 5, source: "Nový",
+    desc: "Krémová míchaná vejce se šunkou a pažitkou — hotová za 10 minut.",
+    ingredients: ["4 vejce","100 g šunky","2 lžíce mléka","1 lžíce másla","pažitka nebo petrželka","sůl","pepř","pečivo k podávání"],
+    steps: ["Vejce rozšlehej s mlékem, solí a pepřem.","Šunku nakrájej na kostičky.","Na pánvi rozehřej máslo na středním plameni.","Vlij vajíčka, přidej šunku. Za stálého míchání vař 2–3 min na mírném plameni — nech je krémová, ne suchá.","Posyp pažitkou a podávej s pečivem."] },
+
+  { id: 74, name: "Zapečené toasty se sýrem", tag: "Rychlá večeře", time: "12 min", emoji: "🧀", rating: 5, source: "Nový",
+    desc: "Horké zapečené toasty se sýrem a šunkou — rychlá večeře nebo svačina.",
+    ingredients: ["4 plátky toastového chleba","4 plátky sýra (eidam nebo gouda)","4 plátky šunky","1 lžíce másla","hořčice (volitelně)","rajče nebo salát k podávání"],
+    steps: ["Předehřej troubu na 200 °C nebo rozehřej toustovač/gril.","Plátky chleba lehce potři máslem nebo hořčicí.","Na každý plát polož šunku a zakryj plátkem sýra.","Peč nebo zapékej 5–8 min dokud sýr nerozteče a nezačne zlatnout.","Podávej s rajčetem nebo salátem."] },
+
+  { id: 75, name: "Tortilla wrap se zeleninou", tag: "Rychlá večeře", time: "10 min", emoji: "🌯", rating: 5, source: "Nový",
+    desc: "Rychlé tortilly plněné čerstvou zeleninou, sýrem a jogurtovou omáčkou — bez vaření.",
+    ingredients: ["2–3 tortilly","150 g řeckého jogurtu","1 lžička česnekového prášku","1 lžička citronové šťávy","hlávkový salát","1 rajče","½ okurky","plátkový sýr","sůl","pepř"],
+    steps: ["Smíchej řecký jogurt s česnековým práškem, citronovou šťávou, solí a pepřem.","Zeleninu nakrájej — salát natrhej, rajče a okurku nakrájej na plátky.","Tortillu rozlož, celou ji potři jogurtovou omáčkou.","Rozlož zeleninu a přidej plátky sýra.","Pevně zaroluj a překroj napůl. Podávej ihned."] },
+
+  { id: 76, name: "Quesadilla se sýrem a šunkou", tag: "Rychlá večeře", time: "12 min", emoji: "🫓", rating: 5, source: "Nový",
+    desc: "Křupavá quesadilla se sýrem a šunkou — hotová na pánvi za 12 minut.",
+    ingredients: ["2 velké tortilly","100 g strouhaného sýra (eidam nebo čedar)","100 g šunky","1 rajče","2 lžíce zakysané smetany","salsa nebo kečup k podávání"],
+    steps: ["Na jednu tortillu rovnoměrně nasyp polovinu sýra.","Přidej šunku nakrájenou na kousky a rajče nakrájené na plátky. Přidej zbylý sýr.","Přikryj druhou tortillou a lehce přimáčkni.","Na suché pánvi na středním plameni opékej 2–3 min z každé strany dozlatova a dokud se sýr neroztaví.","Nakrájej na trojúhelníky a podávej se zakysanou smetanou a salsou."] },
+
+  { id: 77, name: "Avokádový toast", tag: "Rychlá večeře", time: "8 min", emoji: "🥑", rating: 5, source: "Nový",
+    desc: "Jednoduchý avokádový toast s vejcem a cherry rajčátky — výživná rychlá večeře.",
+    ingredients: ["2 plátky chleba (žitný nebo celozrnný)","1 avokádo","2 vejce","cherry rajčátka","šťáva z ½ citronu","sůl","pepř","chilli vločky (volitelně)"],
+    steps: ["Chleba opéct v toustovači nebo na suché pánvi.","Avokádo rozmačkej vidličkou, přidej citronovou šťávu, sůl a pepř.","Vejce uvaří na hniličku (3 min ve vroucí vodě) nebo osmažit na másle.","Na toast nanést avokádo, přidat vejce a cherry rajčátka nakrájená napůl.","Posypat chilli vločkami a dochu solí. Podávej ihned."] },
+
+  { id: 78, name: "Francouzský toast se sýrem", tag: "Rychlá večeře", time: "12 min", emoji: "🍞", rating: 5, source: "Nový",
+    desc: "Slaný francouzský toast namočený ve vajíčku se sýrem — sytá večeře za pár minut.",
+    ingredients: ["4 plátky tučnějšího chleba","2 vejce","50 ml mléka","100 g strouhaného sýra","1 lžíce másla","sůl","pepř","salát k podávání"],
+    steps: ["Vajíčka rozšlehej s mlékem, solí a pepřem. Vmíchej polovinu sýra.","Plátky chleba namáčej ve vajíčkové směsi z obou stran.","Na pánvi rozehřej máslo na středním plameni.","Opékej plátky 2–3 min z každé strany dozlatova.","Na hotové toasty nasypej zbylý sýr a přikryj pokličkou na 1 min aby se roztavil.","Podávej se salátem."] },
+
+  { id: 79, name: "Vajíčka v rajčatech (Shakshuka)", tag: "Rychlá večeře", time: "20 min", emoji: "🍳", rating: 5, source: "Nový",
+    desc: "Vejce poširovaná v pikantní rajčatové omáčce — oblíbená rychlá večeře z celého světa.",
+    ingredients: ["4 vejce","400 g drcených rajčat z plechovky","1 cibule","3 stroužky česneku","1 červená paprika","1 lžička sladké papriky","½ lžičky kmínu","chilli podle chuti","2 lžíce olivového oleje","sůl","pepř","čerstvá petrželka nebo koriandr","pečivo k podávání"],
+    steps: ["Na pánvi rozehřej olej, osmaž nakrájenou cibuli a papriku 4–5 min.","Přidej česnek, mletou papriku, kmín a chilli. Míchej 1 min.","Přidej drcená rajčata, osolíms a opepříme. Vař 5 min.","Lžící udělej v omáčce 4 prohlubně a do každé rozklepni vejce.","Přikryj pokličkou a vař 5–7 min — žloutky by měly být ještě lehce tekuté.","Posyp petrželkou a podávej přímo z pánve s pečivem."] },
+  { id: 80, name: "Kuřecí na citrónu (Pollo al Limone)", tag: "Kuřecí", time: "15 min", emoji: "🍋", rating: 5, source: "Nový",
+    desc: "Italský klasik hotový za 10 minut — kuřecí plátky v máslovo-citronové omáčce s bílým vínem.",
+    ingredients: ["500 g kuřecích prsou (filety)","2 citrony","125 ml bílého vína","1 knob másla","olivový olej","sůl a pepř","čerstvá petrželka","mouka na obalení"],
+    steps: ["Kuřecí prsa nakrájej na tenké plátky nebo lehce rozklepni. Obal v mouce a přebytek oklepej.","Na pánvi rozehřej olivový olej na středním plameni. Opékej plátky z obou stran dozlatova. Osolíme a opepříme.","Přidej bílé víno, kůru z jednoho citronu, šťávu z obou citronů.","Přidej máslo a nasekanou petrželku.","Vař na mírném plameni pár minut dokud je kuře propečené a omáčka lehce nezhoustne.","Podávej ihned — skvělé s těstovinami, rýží nebo čerstvým pečivem."] },
+  { id: 81, name: "Smažená rýže", tag: "Rychlá večeře", time: "20 min", emoji: "🍳", rating: 5, source: "Nový",
+    desc: "Klasická asijská smažená rýže se zeleninou a vejci — skvělé využití vařené rýže z předchozího dne.",
+    ingredients: ["300 g vařené rýže (nejlépe den staré)","3 vejce","2 stroužky česneku","3 jarní cibulky","150 g mražené zeleniny (hrášek, kukuřice, mrkev)","3 lžíce sójové omáčky","1 lžíce sezamového oleje","2 lžíce slunečnicového oleje","sůl","pepř"],
+    steps: ["Rozehřej wok nebo velkou pánev na vysokém plameni, přidej olej.","Osmaž česnek a bílou část jarní cibulky 1 min.","Přidej zeleninu, restuj 2–3 min.","Odstrčíme zeleninu na kraj, do středu vlij rozšlehaná vejce a mích dokud nejsou téměř hotová.","Přidej rýži, vše dobře promíchej a restuj 3–4 min na vysokém plameni — rýže musí být lehce křupavá.","Přilij sójovou omáčku a sezamový olej, promíchej. Posyp zelenou části jarní cibulky a podávej ihned."] },
+
+  { id: 82, name: "Zelňačka", tag: "Polévky", time: "50 min", emoji: "🥣", rating: 5, source: "Nový",
+    desc: "Poctivá česká zelňačka z kysaného zelí s uzeninou a bramborami — zahřeje a zasytí.",
+    ingredients: ["400 g kysaného zelí","200 g uzené klobásy nebo uzeniny","3 brambory","1 cibule","2 stroužky česneku","1 lžíce sádla nebo oleje","1 lžička sladké papriky","1 lžička kmínu","1 bobkový list","1 l vývaru nebo vody","sůl","pepř","zakysaná smetana k podávání"],
+    steps: ["Na sádle osmaž nakrájenou cibuli dozlatova, přidej česnek a kmín.","Přidej papriku, rychle promíchej. Přidej kysané zelí a osmaž 5 min.","Vlij vývar, přidej bobkový list a nakrájené brambory na kostičky.","Vař 20–25 min dokud brambory nezměknou.","Přidej nakrájenou klobásu na kolečka, vař dalších 10 min.","Dochuť solí a pepřem. Podávej s lžící zakysané smetany a chlebem."] },
+  { id: 83, name: "Perník od stařenky", tag: "Dezerty", time: "60 min", emoji: "🍫", rating: 5, source: "Nový",
+    desc: "Tradiční perník od stařenky — množství cukru a mouky se odvíjí od váhy vajec. Měkký, voňavý, s čokoládovou polevou.",
+    ingredients: ["5 vajec","hladká mouka (tolik g, kolik váží 5 vajec)","moučkový cukr (tolik g, kolik váží 5 vajec)","perníkový prášek (do mouky)","2 dl oleje","100 g cukru krystal (na upálení)","2 dl vody","vlašské ořechy (volitelně)","Na polevu: čokoláda a máslo"],
+    steps: ["Zvažte 5 vajec — přesně tolik gramů použij na hladkou mouku i moučkový cukr (např. 5 vajec = 300 g → 300 g mouky a 300 g cukru).","Do mouky přidej perníkový prášek a promíchej.","Oddělíme žloutky od bílků. Žloutky vyšlehej s moučkovým cukrem do světlé pěny.","Za stálého míchání přilévej do pěny 2 dl oleje — pomalu, jako na majonézu.","Na pánvi upálíme 100 g cukru krystal do tmavého karamelu, opatrně zalijeme 2 dl horké vody a mícháme. Nechame vychladnout.","Vychladlý karamel přilij do žloutkové pěny s olejem. Pak zamíchej mouku s perníkovým práškem.","Z bílků vyšlehej tuhý sníh a opatrně zamíchej do těsta. Podle chuti přidej nasekané vlašské ořechy.","Vylij do vymazaného a moukou vysypaného plechu. Peč na 170 °C asi 30–35 minut.","Poleva: čokoládu s trochou másla rozpusť ve vodní lázni, přelij vychladlý perník."] },
+  { id: 84, name: "Citronový koláč s borůvkami", tag: "Dezerty", time: "75 min", emoji: "🍋", rating: 5, source: "Nový",
+    desc: "Šťavnatý citronový koláč s borůvkami a bílou polevou — jednoduchý španělský recept.",
+    ingredients: ["2 celé citrony (tenká kůra — rozmixované)","50 g borůvek","2 hrnky hladké mouky (cca 240 g)","1 sáček kypřícího prášku do pečiva","½ hrnku oleje (cca 125 ml)","3 vejce","1 hrnek cukru (cca 200 g)","5 lžic medu","Na polevu: moučkový cukr a citronová šťáva"],
+    steps: ["Předehřej troubu na 160 °C. Formu na bábovku nebo obdélníkovou formu vymaž a vysyp moukou.","Oba citrony celé (i se slupkou, jen odstraň pecky) nakrájej na kousky a rozmixuj v mixéru na hladkou kaši.","Ve velké míse smíchej vejce s cukrem a medem, šlehej do pěny.","Přidej olej a citronovou kaši, promíchej.","Vsypej mouku smíchanou s kypřícím práškem, zamíchej do hladka.","Opatrně vmíchej borůvky.","Vylij do formy a peč 60 minut na 160 °C. Zkontroluj špejlí — musí vyjít suchá.","Poleva: smíchej moučkový cukr s trochou citronové šťávy na hustou bílou glazuru a přelij vychladlý koláč."] },
+  { id: 85, name: "Borůvkový banánový cheesecake", tag: "Dezerty", time: "45 min", emoji: "🫐", rating: 5, source: "Nový",
+    desc: "Zdravý cheesecake bez cukru a mouky — jen banán, řecký jogurt, vejce a borůvky. 185 kcal na porci.",
+    ingredients: ["1 velký zralý banán (120 g)","240 g řeckého jogurtu","1 vejce","80 g borůvek","1 lžíce javorového sirupu nebo medu (volitelně)","1 lžíce ovesné mouky nebo kukuřičného škrobu (volitelně — pro pevnější texturu)"],
+    steps: ["Předehřej troubu na 170 °C. Malou formu vyloži pečicím papírem.","Banán rozmačkej vidličkou na hladkou kaši.","Přidej řecký jogurt a vejce, míchej do krémova.","Pokud chceš sladší, přidej javorový sirup nebo med.","Opatrně vmíchej borůvky.","Pro pevnější texturu přidej ovesnou mouku nebo škrob.","Vylij do formy a peč 30–35 minut na 170 °C.","Důležité: nech zcela vychladnout před krájením — cheesecake se zpevní až po vychladnutí."] },
+  { id: 22, name: "Vepřové kotlety s jablečnou omáčkou", tag: "Vepřové", time: "35 min", emoji: "🍎", rating: 4, source: "Nový",
+    desc: "Šťavnaté kotlety s jemnou jablečno-tymiánovou omáčkou a bramborovou kaší.",
+    ingredients: ["4 vepřové kotlety bez kosti","2 jablka kyselá","1 kg brambor","100 ml mléka","2 lžíce másla","1 cibule","2 stroužky česneku","1 dl bílého vína","1 lžičku tymiánu","1 lžičku rozmarýnu","1 lžíce oleje","sůl a pepř"],
+    steps: ["Brambory oloupeji, nakrájej a vař v osolené vodě 20 min do měkka.","Kotlety ochu solí, pepřem, tymiánem a rozmarýnem. Rozehřej olej na pánvi na střední plamen.","Opékej kotlety 3–4 min z každé strany dozlatova. Odlož stranou, přikryj alobalem.","Na stejné pánvi restuj cibuli a česnek 2 min. Přidej nakrájená jablka a víno.","Vař 5–7 min, dokud jablka nezměknou. Ochu tymiánem a solí.","Sceď brambory, rozmačkej s máslem a mlékem. Podávej kotlety s kaší a jablečnou omáčkou."] },
+];
+
+const DAYS = ["Po","Út","St","Čt","Pá","So","Ne"];
+const FULL_DAYS = ["Pondělí","Úterý","Středa","Čtvrtek","Pátek","Sobota","Neděle"];
+const MEAL_TYPES = ["Oběd","Večeře"];
+const SHOPPING_DAYS = [0, 3];
+const TAG_STYLES = {
+  "Kuřecí": { from:"#f59e0b", to:"#f97316" },
+  "Vepřové":{ from:"#ec4899", to:"#ef4444" },
+  "Hovězí": { from:"#ef4444", to:"#b91c1c" },
+  "Vegan":  { from:"#22c55e", to:"#16a34a" },
+  "Ryby":   { from:"#3b82f6", to:"#6366f1" },
+  "Dezerty":{ from:"#f472b6", to:"#a855f7" },
+  "Rychlá večeře":{ from:"#f59e0b", to:"#eab308" },
+  "Polévky":{ from:"#06b6d4", to:"#0ea5e9" },
+  "Vlastní":{ from:"#a855f7", to:"#7c3aed" },
+};
+
+const PANTRY_STAPLES = [
+  // Základní suroviny
+  "Voda", "Sůl", "Pepř", "Cukr", "Olej", "Olivový olej", "Slunečnicový olej",
+  "Hladká mouka", "Špaldová mouka", "Rýže", "Basmati rýže", "Jasmínová rýže",
+  "Brambory", "Česnek", "Cibule", "Červená cibule", "Máslo", "Ocet", "Bílý ocet",
+  "Vejce", "Mléko", "Kečup", "Hořčice", "Med", "Prášek do pečiva", "Jedlá soda", "Kari koření", "Kmín", "Sójová omáčka",
+  // Chlazené
+  "Řecký jogurt", "Plátkový sýr", "Šunka",
+  // Zelenina a ovoce
+  "Mrkev", "Citrony", "Sezónní zelenina", "Sezónní ovoce",
+  // Pečivo
+  "Pečivo",
+  // Drogerie
+  "Toaletní papír", "Papírové kapesníky", "Kuchyňské utěrky", "Zubní pasta"
+];
+
+const ALL_TAGS = ["Kuřecí","Vepřové","Hovězí","Ryby","Vegan","Polévky","Rychlá večeře","Dezerty","Vlastní"];
+const EMOJIS = ["🍜","🥩","🍚","🥢","🍱","🌱","🍲","🥦","🥜","🐟","🍳","🫘","🍣","🍋","🐠","🥗","🥕","🫒","🎃","🥬","🍎","🥑","🫕","🍛","🥘","🍝","🧆","🥙","🫔","🍞"];
+const EMPTY_FORM = { name:"", tag:"Kuřecí", time:"30 min", emoji:"🥘", desc:"", ingredients:"", steps:"" };
+
+const initialPlan = () => { const p={}; DAYS.forEach(d=>{p[d]={Oběd:null,Večeře:null};}); return p; };
+
+export default function App() {
+  const [tab, setTab] = useState("plan");
+  const [hiddenRecipes, setHiddenRecipes] = useState(() => LS.get("mp-hidden", []));
+  const [customRecipes, setCustomRecipes] = useState(() => LS.get("mp-custom", []));
+  const [plan, setPlan] = useState(() => {
+    const saved = LS.get("mp-plan", null);
+    if (!saved) return initialPlan();
+    const all = [...BASE_RECIPES, ...LS.get("mp-custom", [])];
+    const p = initialPlan();
+    DAYS.forEach(day => MEAL_TYPES.forEach(meal => {
+      const id = saved[day]?.[meal];
+      if (id) { const r = all.find(x => x.id === id); if (r) p[day][meal] = r; }
+    }));
+    return p;
+  });
+  const [shoppingList, setShoppingList] = useState(() => LS.get("mp-shopping", []));
+  
+  const [pantryStock, setPantryStock] = useState(() => {
+    const saved = LS.get("mp-pantry", null);
+    const initial = {};
+    PANTRY_STAPLES.forEach(s => initial[s.toLowerCase()] = true);
+    if (!saved) return initial;
+    // Doplň nové položky které ještě nejsou uložené (defaultně true = mám doma)
+    const merged = { ...initial, ...saved };
+    return merged;
+  });
+
+  const togglePantryStock = (item) => {
+    const key = item.toLowerCase();
+    const wasInStock = pantryStock[key] !== false; // default je true
+    const newInStock = !wasInStock;
+    const newStock = { ...pantryStock, [key]: newInStock };
+    setPantryStock(newStock);
+    LS.set("mp-pantry", newStock);
+
+    if (!newInStock) {
+      // Došlo — přidej do nákupního seznamu pokud tam ještě není
+      const alreadyIn = shoppingList.some(s => s.name.toLowerCase() === key || s.name.toLowerCase().includes(key));
+      if (!alreadyIn) {
+        const newItem = { name: item, checked: false, id: Math.random(), fromPantry: true };
+        const newList = [...shoppingList, newItem];
+        setShoppingList(newList);
+        saveShopping(newList);
+        showToast(`${item} přidáno do nákupu 🛒`, "#f59e0b");
+      } else {
+        showToast(`${item}: Došlo ❌`, "#f59e0b");
+      }
+    } else {
+      // Zpět skladem — odstraň z nákupního seznamu pokud tam je (jen pokud přidáno z pantry)
+      const newList = shoppingList.filter(s => !(s.fromPantry && s.name.toLowerCase() === key));
+      if (newList.length !== shoppingList.length) {
+        setShoppingList(newList);
+        saveShopping(newList);
+      }
+      showToast(`${item}: Skladem ✅`, "#22c55e");
+    }
+  };
+
+  const [picking, setPicking] = useState(null);
+  const [filterTag, setFilterTag] = useState("Vše");
+  const [filterSource, setFilterSource] = useState("Vše");
+  const [searchIngredient, setSearchIngredient] = useState("");
+  const [customItem, setCustomItem] = useState("");
+  const [exportFlash, setExportFlash] = useState(false);
+  const [detailRecipe, setDetailRecipe] = useState(null);
+  const [detailTab, setDetailTab] = useState("ing");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [planPicker, setPlanPicker] = useState(false); // show day/meal picker in detail modal
+  const [fridgeResult, setFridgeResult] = useState(null);
+  const [manualFridgeText, setManualFridgeText] = useState(""); // {ingredients:[], matches:[{recipe,score,missing:[]}]}
+  const fridgeInputRef = useRef();
+
+  const today = new Date();
+  const todayIdx = today.getDay() === 0 ? 6 : today.getDay() - 1;
+
+  const allRecipes = [...BASE_RECIPES, ...customRecipes].filter(r => !hiddenRecipes.includes(r.id));
+  const plannedCount = Object.values(plan).reduce((a,d)=>a+Object.values(d).filter(v=>v).length,0);
+  const progress = Math.round((plannedCount/(DAYS.length*MEAL_TYPES.length))*100);
+  const shoppingPending = shoppingList.filter(i=>!i.checked).length;
+
+  const showToast = (msg, color="#22c55e") => { setToast({msg,color}); setTimeout(()=>setToast(null),2200); };
+
+  const savePlan = (p) => {
+    const ids = {}; DAYS.forEach(day=>{ids[day]={};MEAL_TYPES.forEach(m=>{ids[day][m]=p[day][m]?.id||null;});});
+    LS.set("mp-plan", ids);
+  };
+  const saveCustom = (c) => LS.set("mp-custom", c);
+  const saveHidden = (h) => LS.set("mp-hidden", h);
+  const saveShopping = (s) => LS.set("mp-shopping", s);
+  const updatePlan = (p) => { setPlan(p); savePlan(p); };
+
+  const selectRecipe = (r) => {
+    if (!picking) return;
+    const p = {...plan, [picking.day]:{...plan[picking.day],[picking.meal]:r}};
+    updatePlan(p); setPicking(null); setTab("plan");
+  };
+  const clearSlot = (day,meal) => { const p={...plan,[day]:{...plan[day],[meal]:null}}; updatePlan(p); };
+
+
+  // Pomocná funkce — má tuto ingredienci doma?
+  const isInPantry = (ing) => {
+    // Odstraň množství a adjektiva
+    const clean = ing.toLowerCase()
+      .replace(/\([^)]*\)/g, "")
+      .replace(/^[\d\s,.×x–\-]+(bal\.|balení|lžíc[ei]|lžičk[yu]|stroužk[yů]|kus[ů]?|g|kg|ml|dl|cl|l|ks|hrst|svazek|špetka|stroužek|plátek|plátky)\s*/i, "")
+      .replace(/^[\d.,\s]+/, "")
+      .replace(/\b(čerstvého|čerstvé|čerstvý|nakrájené|nakrájený|loupaných|oloupaných|polotučného|polotučné|celozrnné|bílého|bílé|červeného|červené|zelené|sušeného|sušené|kvalitní|strouhaného|jemných|vlažné|horké|studené)\b/gi, "")
+      .replace(/\s+/g, " ").trim();
+
+    // Nepravidelné české tvary
+    const FORMS = {
+      "vody":"voda","vodě":"voda","vodu":"voda","vodou":"voda",
+      "soli":"sůl","solí":"sůl","solě":"sůl",
+      "pepře":"pepř","pepři":"pepř","pepřem":"pepř",
+      "octa":"ocet","octu":"ocet","octem":"ocet",
+      "oleje":"olej","oleji":"olej","olejem":"olej",
+      "česneku":"česnek","česnekem":"česnek",
+      "cibule":"cibule","cibuli":"cibule","cibulí":"cibule",
+      "másla":"máslo","másle":"máslo","máslem":"máslo",
+      "medu":"med","medem":"med",
+      "mouky":"mouka","mouce":"mouka",
+      "rýže":"rýže","rýži":"rýže",
+      "vajec":"vejce","vejci":"vejce",
+      "mléka":"mléko","mléce":"mléko",
+      "omáčky":"omáčka","omáčce":"omáčka","omáčkou":"omáčka",
+    };
+
+    const normalizeWord = (w) => FORMS[w] || w;
+
+    // Normalizuj každé slovo v ingredienci
+    const normClean = clean.split(" ").map(normalizeWord).join(" ");
+
+    return PANTRY_STAPLES.some(staple => {
+      if (pantryStock[staple.toLowerCase()] !== true) return false;
+      const s = staple.toLowerCase();
+      const normS = s.split(" ").map(normalizeWord).join(" ");
+
+      // Přímá shoda po normalizaci
+      if (normClean === normS || normClean.includes(normS) || normS.includes(normClean)) return true;
+
+      // Porovnej každé slovo ingredience s každým slovem zásoby
+      const cleanWords = normClean.split(" ");
+      const stapleWords = normS.split(" ");
+      const mainStapleWord = stapleWords[stapleWords.length - 1]; // hlavní slovo (poslední)
+
+      return cleanWords.some(cw => {
+        const ncw = normalizeWord(cw);
+        return ncw === mainStapleWord ||
+          (ncw.length >= 4 && mainStapleWord.startsWith(ncw.slice(0, Math.floor(ncw.length * 0.7)))) ||
+          (mainStapleWord.length >= 4 && ncw.startsWith(mainStapleWord.slice(0, Math.floor(mainStapleWord.length * 0.7))));
+      });
+    });
+  };
+
+  const generateShopping = () => {
+    const seen = new Map();
+    Object.values(plan).forEach(day => Object.values(day).forEach(r => {
+      if (r) r.ingredients.forEach(ing => {
+        if (isInPantry(ing)) return; // máme doma — přeskočit
+        const key = ing.toLowerCase().trim();
+        if (!seen.has(key)) seen.set(key, { name: ing, checked: false, id: Math.random() });
+      });
+    }));
+    const s = [...seen.values()];
+    setShoppingList(s);
+    saveShopping(s);
+    setTab("shopping");
+    showToast(`Nákup vygenerován — ${s.length} položek (skladové zásoby vynechány) 🛒`);
+  };
+
+  const addRecipeToShopping = (r) => {
+    const toAdd = r.ingredients
+      .filter(ing => !isInPantry(ing)) // přeskočit co mám doma
+      .filter(ing => !shoppingList.find(s => s.name === ing))
+      .map(ing => ({ name: ing, checked: false, id: Math.random() }));
+    const skipped = r.ingredients.length - toAdd.length - shoppingList.filter(s => r.ingredients.includes(s.name)).length;
+    const s = [...shoppingList, ...toAdd];
+    setShoppingList(s);
+    saveShopping(s);
+    showToast(skipped > 0 ? `Přidáno ${toAdd.length} položek (${skipped} máš doma ✅)` : `Přidáno do nákupu 🛒`);
+  };
+  const toggleCheck = (id) => { const s=shoppingList.map(i=>i.id===id?{...i,checked:!i.checked}:i); setShoppingList(s); saveShopping(s); };
+  const removeItem = (id) => { const s=shoppingList.filter(i=>i.id!==id); setShoppingList(s); saveShopping(s); };
+  const addCustomShop = () => {
+    if(!customItem.trim()) return;
+    const s=[...shoppingList,{name:customItem.trim(),checked:false,id:Math.random()}]; setShoppingList(s); saveShopping(s); setCustomItem("");
+  };
+
+  const exportList = async () => {
+    // Sestav kompletní seznam: položky ze seznamu (nezaškrtnuté) + chybějící zásoby (❌)
+    const fromList = shoppingList.filter(i => !i.checked);
+
+    // Přidej zásoby označené jako ❌ které ještě nejsou v seznamu
+    const missingPantry = PANTRY_STAPLES.filter(item => {
+      const key = item.toLowerCase();
+      const inStock = pantryStock[key] !== false;
+      if (inStock) return false; // má doma
+      const alreadyIn = shoppingList.some(s => s.name.toLowerCase() === key || s.name.toLowerCase().includes(key));
+      return !alreadyIn;
+    }).map(item => ({ name: item, checked: false, id: Math.random(), fromPantry: true }));
+
+    const allItems = [...fromList, ...missingPantry];
+    if (!allItems.length) { showToast("Seznam je prázdný 🤷","#f59e0b"); return; }
+
+    const nextShop = FULL_DAYS[SHOPPING_DAYS.find(d=>d>=todayIdx)??SHOPPING_DAYS[0]];
+    const dateStr = today.toLocaleDateString("cs-CZ",{day:"numeric",month:"long",year:"numeric"});
+    const mealLines = DAYS.map(day=>{const o=plan[day].Oběd?.name,v=plan[day].Večeře?.name;if(!o&&!v)return null;return `${FULL_DAYS[DAYS.indexOf(day)]}:\n${o?"  Oběd:    "+o:""}${o&&v?"\n":""}${v?"  Večeře: "+v:""}`;}).filter(Boolean).join("\n");
+
+    // Rozděl na sekce: ze zásobníku vs z receptů
+    const pantryItems = allItems.filter(i => i.fromPantry);
+    const recipeItems = allItems.filter(i => !i.fromPantry);
+
+    const lines = [
+      `🛒 NÁKUPNÍ SEZNAM — ${nextShop}`,
+      `📅 ${dateStr}`,
+      "",
+    ];
+    if (recipeItems.length) {
+      lines.push(`🍽 Z JÍDELNÍHO PLÁNU (${recipeItems.length} položek):`);
+      recipeItems.forEach(i => lines.push(`  ☐ ${i.name}`));
+      lines.push("");
+    }
+    if (pantryItems.length) {
+      lines.push(`🏠 CHYBĚJÍCÍ ZÁSOBY (${pantryItems.length} položek):`);
+      pantryItems.forEach(i => lines.push(`  ☐ ${i.name}`));
+      lines.push("");
+    }
+    lines.push("🍽 JÍDELNÍ PLÁN:", mealLines||"(prázdný)");
+
+    const text = lines.join("\n");
+    if (navigator.share) { try { await navigator.share({ title: `Nákup — ${nextShop}`, text }); setExportFlash(true); setTimeout(()=>setExportFlash(false),1800); return; } catch(e) {} }
+    if (navigator.clipboard?.writeText) { try { await navigator.clipboard.writeText(text); setExportFlash(true); setTimeout(()=>setExportFlash(false),1800); showToast("Zkopírováno do schránky 📋"); return; } catch(e) {} }
+    const blob=new Blob(["﻿"+text],{type:"text/plain;charset=utf-8"}); const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download=`nakup-${today.toISOString().slice(0,10)}.txt`; a.click(); URL.revokeObjectURL(url);
+    setExportFlash(true); setTimeout(()=>setExportFlash(false),1800);
+  };
+
+  const deleteRecipe = (r) => {
+    const h=[...hiddenRecipes,r.id]; setHiddenRecipes(h); saveHidden(h);
+    if(r.source==="Vlastní"){ const c=customRecipes.filter(x=>x.id!==r.id); setCustomRecipes(c); saveCustom(c); }
+    const p={...plan}; DAYS.forEach(d=>MEAL_TYPES.forEach(m=>{if(p[d][m]?.id===r.id)p[d][m]=null;}));
+    updatePlan(p); setDetailRecipe(null); showToast("Recept smazán 🗑", "#ef4444");
+  };
+
+  const openAddForm = (r=null) => {
+    if(r){setForm({name:r.name,tag:r.tag,time:r.time,emoji:r.emoji,desc:r.desc||"",ingredients:r.ingredients.join("\n"),steps:(r.steps||[]).join("\n")});setEditingId(r.id);}
+    else{setForm(EMPTY_FORM);setEditingId(null);}
+    setShowAddForm(true);
+  };
+  const saveRecipe = () => {
+    if(!form.name.trim()) return;
+    const ings=form.ingredients.split("\n").map(s=>s.trim()).filter(Boolean);
+    const stps=form.steps.split("\n").map(s=>s.trim()).filter(Boolean);
+    if(editingId){ const c=customRecipes.map(r=>r.id===editingId?{...r,...form,ingredients:ings,steps:stps}:r); setCustomRecipes(c); saveCustom(c); }
+    else { const nr={...form,ingredients:ings,steps:stps,id:Date.now(),source:"Vlastní",rating:5}; const c=[...customRecipes,nr]; setCustomRecipes(c); saveCustom(c); }
+    setShowAddForm(false); setForm(EMPTY_FORM); setEditingId(null); showToast("Recept uložen ✓");
+  };
+
+  // ── ZÁKLADNÍ SUROVINY (vždy k dispozici) ──
+  const BASE_PANTRY = ["voda","sůl","pepř","cukr","olej","cibule","rýže","brambory","česnek","mouka","máslo","ocet"];
+
+  // ── Match recipes helper ──
+  const matchRecipes = (detectedIngredients) => {
+    const BASE_PANTRY = ["voda","sůl","pepř","cukr","olej","cibule","česnek","rýže","brambory","mouka","máslo","ocet","vejce","mléko","rajče","rajčata","vývar"];
+    const SYNONYMS = [
+      ["teriyaki","sójová omáčka","sójové omáčky","tamari","sójové"],
+      ["bujón","vývar","zeleninový vývar","kuřecí vývar"],
+      ["jogurt","smetana","zakysaná smetana","řecký jogurt"],
+      ["pór","jarní cibulka","cibule"],
+      ["šunka","šunky","šunku","uzenina","salám","uzené"],
+      ["cherry rajčátka","rajče","rajčata","rajčatový","drcená rajčata"],
+      ["kokosové mléko","kokosový"],
+      ["kari","curry","kari koření","kari paste","kari pasty"],
+      ["kuřecí prsa","kuřecích prsou","kuřecí","kuřete"],
+      ["mrkev","mrkve","mrkví","karotka"],
+      ["paprika","papriky","paprice"],
+      ["žampión","žampiony","žampionů","houby"],
+      ["tvaroh","tvarohu","tvarohový"],
+      ["čokoláda","čokolády","kakao"],
+    ];
+    const allRaw = [...detectedIngredients.map(i=>i.toLowerCase()), ...BASE_PANTRY];
+    const allAvailable = [...allRaw];
+    SYNONYMS.forEach(group => {
+      if(group.some(s => allRaw.some(a => a.includes(s.slice(0,5)) || s.includes(a.slice(0,5))))) {
+        group.forEach(s => { if(!allAvailable.includes(s)) allAvailable.push(s); });
+      }
+    });
+    // stem = first 60% of word, min 4 chars
+    const getStem = (w) => { w=w.trim().toLowerCase(); return w.length>5?w.slice(0,Math.max(4,Math.floor(w.length*0.6))):w; };
+    const isMatch = (req, av) => {
+      if(req===av||req.includes(av)||av.includes(req)) return true;
+      const rs=getStem(req), as=getStem(av);
+      return rs===as||rs.length>=4&&av.includes(rs)||as.length>=4&&req.includes(as);
+    };
+    const cleanIng = (ing) => ing.toLowerCase()
+      .replace(/\([^)]*\)/g,"")
+      .replace(/^[\d\s,.×x–\-]+(bal\.|balení|lžíc[ei]|lžičk[yu]|stroužk[yů]|kus[ů]?|g|kg|ml|dl|cl|l|ks|hrst|svazek|plechovka|plátk[yů]|větvičk[ay])\s*/i,"")
+      .replace(/^[\d.,\s]+/,"")
+      .replace(/\b(čerstvého|čerstvé|čerstvý|nakrájené|nakrájený|loupaných|oloupaných|polotučného|polotučné|celozrnné|bílé|bílý|červené|zelené|sušené|sušený|kvalitní|jemných|strouhaného|velkosti|vel\.|velikosti)\b/gi,"")
+      .replace(/\s+/g," ").trim();
+    return allRecipes.map(recipe => {
+      const required = recipe.ingredients.map(cleanIng).filter(r=>r.length>1);
+      const matched = required.filter(req => allAvailable.some(av=>isMatch(req,av)));
+      const missing = required.filter(req => !allAvailable.some(av=>isMatch(req,av)));
+      const score = required.length>0 ? matched.length/required.length : 0;
+      return { recipe, score, missing, matched:matched.length, total:required.length };
+    }).filter(m=>m.score>=0.65).sort((a,b)=>b.score-a.score);
+  };
+
+  const handleManualFridge = (text) => {
+    const ingredients = text.split(/[,;]+/).map(s=>s.trim().toLowerCase()).filter(Boolean);
+    const matches = matchRecipes(ingredients);
+    setFridgeResult({ ingredients, matches });
+    showToast(matches.length>0?`Našla jsem ${matches.length} receptů! 🎉`:"Žádný recept 85%+ 😕", matches.length>0?"#22c55e":"#f59e0b");
+  };
+
+  const filtered = allRecipes
+    .filter(r=>filterTag==="Vše"||r.tag===filterTag)
+    .filter(r=>filterSource==="Vše"||(filterSource==="Vlastní"?r.source==="Vlastní":(r.source!=="Vlastní")))
+    .filter(r=>{ if(!searchIngredient.trim()) return true; const q=searchIngredient.toLowerCase().trim(); const vowels='aeiouyáéěíóůúý'; const lastIsVowel=vowels.includes(q[q.length-1]); const cutTo=lastIsVowel?Math.max(4,Math.floor(q.length*0.7)):Math.max(4,Math.floor(q.length*0.75)); const stem=q.length>4?q.slice(0,cutTo):q; const stem2=q.length>4?q.slice(0,cutTo-1):q; const match=(txt)=>txt.includes(stem)||txt.includes(stem2); return r.ingredients.some(i=>match(i.toLowerCase()))||match(r.name.toLowerCase()); });
+
+  const TagBadge = ({tag})=>{
+    const t=TAG_STYLES[tag]||TAG_STYLES["Kuřecí"];
+    return <span style={{display:"inline-block",background:`linear-gradient(135deg,${t.from},${t.to})`,color:"#fff",fontWeight:700,fontSize:"9px",letterSpacing:"0.05em",textTransform:"uppercase",padding:"2px 8px",borderRadius:"20px",whiteSpace:"nowrap"}}>{tag}</span>;
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f8fafc",fontFamily:"system-ui,-apple-system,sans-serif",color:"#1e293b"}}>
+      <style>{`
+        *{box-sizing:border-box;margin:0;padding:0;}
+        ::-webkit-scrollbar{width:4px;height:4px;}
+        ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
+        .tab-btn{flex:1;background:none;border:none;cursor:pointer;padding:12px 4px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);transition:all 0.2s;border-bottom:3px solid transparent;font-family:system-ui,sans-serif;white-space:nowrap;}
+        .tab-btn.on{color:#fff;border-bottom-color:#fff;background:rgba(255,255,255,0.1);}
+        .recipe-card{background:#fff;border-radius:16px;padding:0;box-shadow:0 1px 3px rgba(0,0,0,0.07);transition:all 0.2s;border:2px solid transparent;overflow:hidden;cursor:pointer;}
+        .recipe-card:hover{box-shadow:0 4px 14px rgba(0,0,0,0.11);transform:translateY(-1px);}
+        .recipe-card.picking:hover{border-color:#6366f1;box-shadow:0 4px 20px rgba(99,102,241,0.25);}
+        .day-card{background:#fff;border-radius:16px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,0.07);border:2px solid transparent;}
+        .day-card.today{border-color:#6366f1;background:linear-gradient(135deg,#faf5ff,#eff6ff);}
+        .slot{background:#f8fafc;border:2px dashed #e2e8f0;border-radius:10px;padding:10px 8px;cursor:pointer;min-height:58px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;text-align:center;}
+        .slot:hover{border-color:#6366f1;background:#f0f0ff;}
+        .slot.filled{border:2px solid #e0e7ff;background:linear-gradient(135deg,#f0f0ff,#fff);justify-content:flex-start;text-align:left;cursor:default;position:relative;align-items:flex-start;}
+        .filter-chip{border:none;cursor:pointer;font-size:11px;font-weight:700;padding:6px 14px;border-radius:20px;transition:all 0.15s;background:#f1f5f9;color:#64748b;font-family:system-ui,sans-serif;white-space:nowrap;}
+        .filter-chip:hover{background:#e2e8f0;}
+        .filter-chip.on{background:#6366f1;color:#fff;}
+        .shopping-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:#fff;margin-bottom:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);}
+        .ckbox{width:18px;height:18px;cursor:pointer;accent-color:#6366f1;flex-shrink:0;}
+        .del-btn{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:18px;padding:0 2px;line-height:1;transition:color 0.15s;}
+        .del-btn:hover{color:#ef4444;}
+        .primary-btn{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:700;padding:12px 20px;border-radius:12px;transition:all 0.15s;font-family:system-ui,sans-serif;box-shadow:0 2px 8px rgba(99,102,241,0.3);}
+        .primary-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(99,102,241,0.4);}
+        .green-btn{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:700;padding:12px 20px;border-radius:12px;transition:all 0.15s;font-family:system-ui,sans-serif;box-shadow:0 2px 8px rgba(34,197,94,0.3);}
+        .green-btn:hover{transform:translateY(-1px);}
+        .outline-btn{background:#fff;border:2px solid #e0e7ff;color:#6366f1;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:9px 14px;border-radius:10px;transition:all 0.15s;display:flex;align-items:center;gap:5px;font-family:system-ui,sans-serif;}
+        .outline-btn:hover{background:#f0f0ff;border-color:#6366f1;}
+        .outline-btn.flash{background:#6366f1;color:#fff;}
+        .text-input{width:100%;background:#fff;border:2px solid #e2e8f0;color:#1e293b;font-size:14px;padding:10px 14px;border-radius:12px;outline:none;transition:border-color 0.2s;font-family:system-ui,sans-serif;}
+        .text-input:focus{border-color:#6366f1;}
+        .text-input::placeholder{color:#94a3b8;}
+        textarea.text-input{resize:vertical;min-height:90px;line-height:1.6;}
+        select.text-input{cursor:pointer;}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
+        .modal-box{background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:620px;max-height:92vh;overflow-y:auto;padding:22px;}
+        .form-label{font-size:11px;font-weight:700;color:#64748b;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px;display:block;}
+        .emoji-btn{width:36px;height:36px;border-radius:8px;border:2px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.1s;}
+        .emoji-btn.sel{border-color:#6366f1;background:#f0f0ff;}
+        .step-num{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+        .dtab-btn{flex:1;background:none;border:none;cursor:pointer;padding:10px;font-size:13px;font-weight:700;color:#94a3b8;border-bottom:2px solid transparent;transition:all 0.15s;font-family:system-ui,sans-serif;}
+        .dtab-btn.on{color:#6366f1;border-bottom-color:#6366f1;}
+        .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);color:#fff;font-weight:700;font-size:13px;padding:12px 24px;border-radius:50px;box-shadow:0 4px 20px rgba(0,0,0,0.2);z-index:400;white-space:nowrap;animation:toastIn 0.3s ease;}
+        @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+      `}</style>
+
+      {toast && <div className="toast" style={{background:toast.color}}>{toast.msg}</div>}
+
+      {/* HEADER */}
+      <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899)",padding:"22px 18px 0"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
+          <div>
+            <h1 style={{fontSize:"19px",fontWeight:800,color:"#fff",letterSpacing:"-0.01em",lineHeight:1.2}}>🍳 Cook Clever<span style={{fontSize:"12px",fontWeight:600,color:"rgba(255,255,255,0.7)",marginLeft:"7px",letterSpacing:"0"}}>· Vařme chytře</span></h1>
+            <p style={{fontSize:"11px",color:"rgba(255,255,255,0.7)",marginTop:"3px"}}>
+              {today.toLocaleDateString("cs-CZ",{day:"numeric",month:"long",year:"numeric"})} · {allRecipes.length} receptů
+            </p>
+          </div>
+          <div style={{textAlign:"center",background:"rgba(255,255,255,0.15)",borderRadius:"14px",padding:"10px 14px"}}>
+            <div style={{fontSize:"22px",fontWeight:800,color:"#fff",lineHeight:1}}>{progress}%</div>
+            <div style={{fontSize:"9px",color:"rgba(255,255,255,0.7)",marginTop:"2px",letterSpacing:"0.08em",textTransform:"uppercase"}}>plán</div>
+            <div style={{width:"56px",height:"4px",background:"rgba(255,255,255,0.2)",borderRadius:"4px",marginTop:"4px",overflow:"hidden"}}>
+              <div style={{width:`${progress}%`,height:"100%",background:"#fff",borderRadius:"4px",transition:"width 0.5s"}}/>
+            </div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:"6px",marginBottom:"14px",flexWrap:"wrap"}}>
+          {SHOPPING_DAYS.map(d=>(
+            <span key={d} style={{display:"inline-flex",alignItems:"center",gap:"4px",background:todayIdx===d?"#fff":"rgba(255,255,255,0.2)",color:todayIdx===d?"#6366f1":"#fff",fontSize:"11px",fontWeight:700,padding:"4px 10px",borderRadius:"20px"}}>
+              🛒 {FULL_DAYS[d]}
+            </span>
+          ))}
+          <span style={{background:"rgba(255,255,255,0.15)",color:"rgba(255,255,255,0.8)",fontSize:"11px",fontWeight:600,padding:"4px 10px",borderRadius:"20px"}}>
+            📍 {FULL_DAYS[todayIdx]}
+          </span>
+        </div>
+        <div style={{display:"flex",background:"rgba(0,0,0,0.15)",borderRadius:"14px 14px 0 0",overflow:"hidden"}}>
+          {[{key:"plan",icon:"📅",label:"Plán"},{key:"library",icon:"📖",label:`Recepty (${allRecipes.length})`},{key:"shopping",icon:"🛍",label:`Nákup${shoppingPending?` (${shoppingPending})`:""}`},{key:"fridge",icon:"🧊",label:"Lednička"}]
+            .map(({key,icon,label})=>(
+              <button key={key} className={`tab-btn ${tab===key?"on":""}`} onClick={()=>setTab(key)}>{icon} {label}</button>
+            ))}
+        </div>
+      </div>
+
+      <div style={{padding:"16px",maxWidth:"900px",margin:"0 auto"}}>
+
+        {/* PLÁN TÝDNE */}
+        {tab==="plan" && (
+          <div>
+            <div style={{background:"linear-gradient(135deg,#f0fdf4,#dcfce7)",border:"1px solid #bbf7d0",borderRadius:"12px",padding:"10px 14px",marginBottom:"12px",display:"flex",alignItems:"center",gap:"8px"}}>
+              <span>💾</span>
+              <span style={{fontSize:"12px",color:"#15803d",fontWeight:600}}>Plán se ukládá automaticky v tomto prohlížeči.</span>
+            </div>
+            {plannedCount>0&&<button className="primary-btn" style={{width:"100%",marginBottom:"14px"}} onClick={generateShopping}>🛒 Vygenerovat nákupní seznam ({plannedCount} jídel)</button>}
+            {plannedCount===0&&<div style={{background:"linear-gradient(135deg,#f0f0ff,#faf5ff)",border:"2px dashed #c7d2fe",borderRadius:"16px",padding:"20px",textAlign:"center",marginBottom:"14px"}}><div style={{fontSize:"28px",marginBottom:"6px"}}>👆</div><div style={{fontSize:"14px",fontWeight:600,color:"#6366f1"}}>Klikni na + přidat a vyber recept</div></div>}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(118px,1fr))",gap:"8px"}}>
+              {DAYS.map((day,di)=>(
+                <div key={day} className={`day-card ${di===todayIdx?"today":""}`}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}}>
+                    <span style={{fontSize:"15px",fontWeight:800,color:di===todayIdx?"#6366f1":"#64748b"}}>{day}</span>
+                    <div style={{display:"flex",gap:"3px",alignItems:"center"}}>
+                      {di===todayIdx&&<span style={{fontSize:"8px",background:"#6366f1",color:"#fff",padding:"1px 5px",borderRadius:"20px",fontWeight:700}}>dnes</span>}
+                      {SHOPPING_DAYS.includes(di)&&<span style={{fontSize:"10px"}}>🛒</span>}
+                    </div>
+                  </div>
+                  {MEAL_TYPES.map(meal=>{
+                    const r=plan[day][meal];
+                    return (
+                      <div key={meal} style={{marginBottom:"5px"}}>
+                        <div style={{fontSize:"8px",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#94a3b8",marginBottom:"2px"}}>{meal}</div>
+                        {r?(
+                          <div className="slot filled" onClick={()=>{setDetailRecipe(r);setDetailTab("ing");}} style={{cursor:"pointer"}}>
+                            <div style={{flex:1,paddingRight:"14px"}}>
+                              <div style={{fontSize:"14px",marginBottom:"1px"}}>{r.emoji}</div>
+                              <div style={{fontSize:"9px",fontWeight:600,color:"#6366f1",lineHeight:1.3}}>{r.name}</div>
+                            </div>
+                            <button onClick={e=>{e.stopPropagation();clearSlot(day,meal);}} className="del-btn" style={{position:"absolute",top:3,right:3,fontSize:"13px"}}>×</button>
+                          </div>
+                        ):(
+                          <div className="slot" onClick={()=>{setPicking({day,meal});setTab("library");}}>
+                            <span style={{fontSize:"10px",color:"#94a3b8",fontWeight:600}}>+ přidat</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* KNIHOVNA */}
+        {tab==="library" && (
+          <div>
+            {picking&&(
+              <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",borderRadius:"14px",padding:"12px 16px",marginBottom:"14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:"10px",color:"rgba(255,255,255,0.7)",fontWeight:600}}>VYBÍRÁM PRO</div>
+                  <div style={{fontSize:"14px",color:"#fff",fontWeight:700}}>{picking.day} · {picking.meal}</div>
+                </div>
+                <button onClick={()=>{setPicking(null);setTab("plan");}} style={{background:"rgba(255,255,255,0.2)",border:"none",color:"#fff",width:"30px",height:"30px",borderRadius:"50%",cursor:"pointer",fontSize:"15px"}}>✕</button>
+              </div>
+            )}
+            <div style={{marginBottom:"14px"}}>
+              <button className="green-btn" style={{fontSize:"13px",padding:"12px",width:"100%"}} onClick={()=>openAddForm()}>✏️ Přidat vlastní recept</button>
+            </div>
+            <div style={{marginBottom:"14px"}}>
+              <div style={{position:"relative",marginBottom:"10px"}}>
+                <span style={{position:"absolute",left:"12px",top:"50%",transform:"translateY(-50%)",fontSize:"16px",pointerEvents:"none"}}>🔍</span>
+                <input className="text-input" type="text" placeholder="Hledat podle suroviny nebo názvu… (např. cuketa)" value={searchIngredient} onChange={e=>setSearchIngredient(e.target.value)} style={{paddingLeft:"38px"}}/>
+                {searchIngredient&&(<button onClick={()=>setSearchIngredient("")} style={{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:"16px",color:"#94a3b8",lineHeight:1}}>✕</button>)}
+              </div>
+              <div style={{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"7px"}}>
+                <button className={`filter-chip ${filterTag==="Vše"?"on":""}`} onClick={()=>setFilterTag("Vše")}>Vše</button>
+                {ALL_TAGS.map(t=>{const ts=TAG_STYLES[t];return(
+                  <button key={t} className="filter-chip" onClick={()=>setFilterTag(t)} style={filterTag===t?{background:`linear-gradient(135deg,${ts.from},${ts.to})`,color:"#fff"}:{}}>{t}</button>
+                );})}
+              </div>
+              <div style={{display:"flex",gap:"5px",flexWrap:"wrap",alignItems:"center"}}>
+                <span style={{fontSize:"10px",fontWeight:700,color:"#94a3b8"}}>Zdroj:</span>
+                {[["Vše","Vše"],["builtin","📦 Zabudované"],["Vlastní","⭐ Moje"]].map(([val,label])=>(
+                  <button key={val} className={`filter-chip ${filterSource===val?"on":""}`} onClick={()=>setFilterSource(val)}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"10px",fontWeight:600}}>
+              {filtered.length} z {allRecipes.length} receptů
+              {searchIngredient&&<span style={{marginLeft:"6px",color:"#6366f1",fontWeight:700}}>· hledám: „{searchIngredient}"</span>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(255px,1fr))",gap:"10px"}}>
+              {filtered.map(r=>{
+                const ts=TAG_STYLES[r.tag]||TAG_STYLES["Kuřecí"];
+                const isCustom=r.source==="Vlastní";
+                return (
+                  <div key={r.id} className={`recipe-card${picking?" picking":""}`} onClick={()=>picking?selectRecipe(r):(setDetailRecipe(r),setDetailTab("ing"))}>
+                    <div style={{height:"5px",background:`linear-gradient(90deg,${ts.from},${ts.to})`}}/>
+                    <div style={{padding:"14px"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"8px"}}>
+                        <span style={{fontSize:"26px"}}>{r.emoji}</span>
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"3px"}}>
+                          <span style={{background:isCustom?"#faf5ff":r.source==="Yummy"?"#fef3c7":"#dcfce7",color:isCustom?"#7c3aed":r.source==="Yummy"?"#d97706":"#16a34a",fontSize:"9px",fontWeight:700,padding:"2px 7px",borderRadius:"20px"}}>
+                            {isCustom?"⭐ Moje":r.source==="Yummy"?"📦 Yummy":"✨ Tip"}
+                          </span>
+                          <TagBadge tag={r.tag}/>
+                        </div>
+                      </div>
+                      <div style={{fontSize:"14px",fontWeight:700,color:"#1e293b",lineHeight:1.3,marginBottom:"5px"}}>{r.name}</div>
+                      {r.desc&&<p style={{fontSize:"11px",color:"#64748b",lineHeight:1.4,marginBottom:"8px"}}>{r.desc}</p>}
+                      <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px"}}>
+                        <span style={{fontSize:"10px",background:"#f1f5f9",color:"#64748b",padding:"2px 8px",borderRadius:"8px",fontWeight:600}}>⏱ {r.time}</span>
+                        <span style={{color:"#f59e0b",fontSize:"11px",letterSpacing:"-1px"}}>{"★".repeat(r.rating)}{"☆".repeat(5-r.rating)}</span>
+                        {r.steps?.length>0&&<span style={{fontSize:"10px",color:"#6366f1",fontWeight:600}}>{r.steps.length} kroků</span>}
+                      </div>
+                      {!picking?(
+                        <div style={{display:"flex",gap:"6px"}}>
+                          <button className="primary-btn" style={{flex:1,fontSize:"10px",padding:"8px"}} onClick={e=>{e.stopPropagation();setDetailTab("ing");setDetailRecipe(r);}}>👁 Detail</button>
+                          <button className="outline-btn" style={{fontSize:"10px",padding:"8px 10px"}} onClick={e=>{e.stopPropagation();addRecipeToShopping(r);}}>🛒</button>
+                          {isCustom&&<button onClick={e=>{e.stopPropagation();openAddForm(r);}} style={{background:"#fef3c7",border:"none",color:"#d97706",fontWeight:700,fontSize:"11px",padding:"8px 10px",borderRadius:"10px",cursor:"pointer"}}>✏️</button>}
+                          <button onClick={e=>{e.stopPropagation();setConfirmDelete(r);}} style={{background:"#fef2f2",border:"none",color:"#ef4444",fontWeight:700,fontSize:"11px",padding:"8px 10px",borderRadius:"10px",cursor:"pointer"}}>🗑</button>
+                        </div>
+                      ):(
+                        <button className="primary-btn" style={{width:"100%",fontSize:"11px",padding:"9px"}} onClick={e=>{e.stopPropagation();selectRecipe(r);}}>✓ Vybrat pro {picking.day} · {picking.meal}</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* NÁKUP */}
+        {tab==="shopping" && (
+          <div>
+            {/* SEKCE SKLADOVÉ ZÁSOBY */}
+            {(()=>{
+              const PANTRY_GROUPS = [
+                { label:"🧂 Základní suroviny", items:["Sůl","Pepř","Cukr","Olej","Olivový olej","Slunečnicový olej","Máslo","Ocet","Bílý ocet","Med"] },
+                { label:"🌾 Mouka & obiloviny", items:["Hladká mouka","Špaldová mouka","Rýže","Basmati rýže","Jasmínová rýže","Prášek do pečiva","Jedlá soda"] },
+                { label:"🥔 Zelenina & ovoce", items:["Brambory","Cibule","Červená cibule","Česnek","Mrkev","Citrony","Sezónní zelenina","Sezónní ovoce"] },
+                { label:"🧊 Chlazené", items:["Vejce","Mléko","Řecký jogurt","Plátkový sýr","Šunka"] },
+                { label:"🍞 Pečivo & dochucení", items:["Pečivo","Kečup","Hořčice","Kari koření","Kmín","Sójová omáčka"] },
+                { label:"🧴 Drogerie", items:["Toaletní papír","Papírové kapesníky","Kuchyňské utěrky","Zubní pasta"] },
+              ];
+              return (
+                <div style={{background:"#fff",borderRadius:"16px",padding:"16px",marginBottom:"14px",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
+                    <h3 style={{fontSize:"13px",fontWeight:800,color:"#1e293b"}}>🏠 Skladové zásoby</h3>
+                    <span style={{fontSize:"10px",color:"#94a3b8",fontWeight:600}}>❌ došlo → přidá se do nákupu</span>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+                    {PANTRY_GROUPS.map(group=>(
+                      <div key={group.label}>
+                        <div style={{fontSize:"10px",fontWeight:700,color:"#94a3b8",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:"6px"}}>{group.label}</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:"5px"}}>
+                          {group.items.map(item=>{
+                            const inStock = pantryStock[item.toLowerCase()];
+                            return (
+                              <button key={item} onClick={()=>togglePantryStock(item)} style={{border:"none",cursor:"pointer",fontSize:"11px",fontWeight:700,padding:"5px 11px",borderRadius:"20px",transition:"all 0.15s",fontFamily:"system-ui,sans-serif",
+                                background: inStock?"#f1f5f9":"#fef2f2",
+                                color: inStock?"#64748b":"#ef4444",
+                                outline: inStock?"1px solid transparent":"1px solid #fecaca"
+                              }}>
+                                {inStock?"✅":"❌"} {item}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{fontSize:"10px",color:"#94a3b8",marginTop:"12px",fontStyle:"italic"}}>✅ mám doma &nbsp;·&nbsp; ❌ došlo — přidám na nákup</p>
+                </div>
+              );
+            })()}
+
+            <div style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",borderRadius:"16px",padding:"16px",marginBottom:"14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:"10px",color:"rgba(255,255,255,0.7)",fontWeight:600,marginBottom:"2px"}}>PŘÍŠTÍ NÁKUP</div>
+                  <div style={{fontSize:"18px",fontWeight:800,color:"#fff"}}>{FULL_DAYS[SHOPPING_DAYS.find(d=>d>=todayIdx)??SHOPPING_DAYS[0]]}</div>
+                  <div style={{fontSize:"11px",color:"rgba(255,255,255,0.7)",marginTop:"2px"}}>{shoppingPending} položek</div>
+                </div>
+                <button className={`outline-btn${exportFlash?" flash":""}`} onClick={exportList} disabled={shoppingPending===0} style={{opacity:shoppingPending===0?0.4:1,borderColor:"rgba(255,255,255,0.4)",color:"#fff",background:"rgba(255,255,255,0.15)"}}>
+                  <span style={{fontSize:"14px"}}>📤</span>{exportFlash?"Hotovo!":"Sdílet / Kopírovat"}
+                </button>
+              </div>
+            </div>
+            {plannedCount>0&&<button className="primary-btn" style={{width:"100%",marginBottom:"12px"}} onClick={generateShopping}>🔄 Vygenerovat ze {plannedCount} jídel</button>}
+            <div style={{display:"flex",gap:"8px",marginBottom:"14px"}}>
+              <input className="text-input" type="text" placeholder="Přidat ručně…" value={customItem} onChange={e=>setCustomItem(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustomShop()}/>
+              <button className="primary-btn" style={{whiteSpace:"nowrap",padding:"10px 14px"}} onClick={addCustomShop}>+ Přidat</button>
+            </div>
+            {shoppingList.length===0&&<div style={{textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:"44px",marginBottom:"10px"}}>🛒</div><div style={{fontSize:"14px",fontWeight:600,color:"#64748b"}}>Seznam je prázdný</div></div>}
+            {shoppingPending>0&&(
+              <div style={{marginBottom:"14px"}}>
+                <div style={{fontSize:"10px",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#64748b",marginBottom:"6px"}}>K NÁKUPU ({shoppingPending})</div>
+                {shoppingList.filter(i=>!i.checked).map(item=>(
+                  <div key={item.id} className="shopping-row">
+                    <input type="checkbox" className="ckbox" checked={false} onChange={()=>toggleCheck(item.id)}/>
+                    <span style={{flex:1,fontSize:"14px",color:"#1e293b",fontWeight:500}}>{item.name}</span>
+                    <button className="del-btn" onClick={()=>removeItem(item.id)}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {shoppingList.filter(i=>i.checked).length>0&&(
+              <div>
+                <div style={{fontSize:"10px",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#94a3b8",marginBottom:"6px"}}>HOTOVO ({shoppingList.filter(i=>i.checked).length})</div>
+                {shoppingList.filter(i=>i.checked).map(item=>(
+                  <div key={item.id} className="shopping-row" style={{opacity:0.5}}>
+                    <input type="checkbox" className="ckbox" checked={true} onChange={()=>toggleCheck(item.id)}/>
+                    <span style={{flex:1,fontSize:"14px",color:"#94a3b8",textDecoration:"line-through"}}>{item.name}</span>
+                    <button className="del-btn" onClick={()=>removeItem(item.id)}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {shoppingList.length>0&&(
+              <div style={{marginTop:"14px",paddingTop:"12px",borderTop:"1px solid #e2e8f0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:"12px",color:"#94a3b8",fontWeight:600}}>{shoppingList.filter(i=>i.checked).length} / {shoppingList.length} hotovo</span>
+                <button onClick={()=>{const s=shoppingList.filter(i=>!i.checked);setShoppingList(s);saveShopping(s);}} style={{background:"none",border:"2px solid #fecaca",color:"#ef4444",fontSize:"12px",fontWeight:600,padding:"6px 14px",borderRadius:"10px",cursor:"pointer",fontFamily:"system-ui,sans-serif"}}>🗑 Smazat hotové</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* LEDNIČKA — CO UVAŘÍM */}
+        {tab==="fridge" && (
+          <div>
+            <div style={{background:"linear-gradient(135deg,#0ea5e9,#6366f1)",borderRadius:"16px",padding:"20px",marginBottom:"16px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"14px"}}>
+                <span style={{fontSize:"32px"}}>🧊</span>
+                <div>
+                  <h2 style={{fontSize:"16px",fontWeight:800,color:"#fff",marginBottom:"2px"}}>Co mám v ledničce?</h2>
+                  <p style={{fontSize:"11px",color:"rgba(255,255,255,0.75)"}}>Zadej suroviny — najdu recepty které uvařím (min. 65 %)</p>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:"8px"}}>
+                <input
+                  className="text-input"
+                  type="text"
+                  placeholder="vejce, brokolice, šunka, jogurt…"
+                  value={manualFridgeText}
+                  onChange={e=>setManualFridgeText(e.target.value)}
+                  style={{flex:1,fontSize:"13px",background:"rgba(255,255,255,0.95)"}}
+                  onKeyDown={e=>{if(e.key==="Enter"&&manualFridgeText.trim())handleManualFridge(manualFridgeText);}}
+                />
+                <button
+                  style={{background:"#fff",border:"none",color:"#6366f1",fontWeight:800,fontSize:"13px",padding:"0 16px",borderRadius:"12px",cursor:"pointer",fontFamily:"system-ui,sans-serif",whiteSpace:"nowrap",boxShadow:"0 2px 8px rgba(0,0,0,0.1)"}}
+                  onClick={()=>{if(manualFridgeText.trim())handleManualFridge(manualFridgeText);}}>
+                  Hledat →
+                </button>
+              </div>
+              <div style={{fontSize:"11px",color:"rgba(255,255,255,0.6)",marginTop:"8px"}}>
+                Základní suroviny (sůl, pepř, olej, cibule, česnek, rýže, brambory, vejce, mléko…) se počítají automaticky
+              </div>
+            </div>
+
+            {fridgeResult&&(
+              <div>
+                {/* Detected ingredients */}
+                <div style={{background:"#fff",borderRadius:"16px",padding:"16px",marginBottom:"14px",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"}}>
+                  <div style={{fontSize:"11px",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#64748b",marginBottom:"10px"}}>
+                    🛒 Rozpoznané suroviny ({fridgeResult.ingredients.length})
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+                    {fridgeResult.ingredients.map((ing,i)=>(
+                      <span key={i} style={{background:"linear-gradient(135deg,#f0f9ff,#e0f2fe)",border:"1px solid #bae6fd",color:"#0369a1",fontSize:"12px",fontWeight:600,padding:"4px 10px",borderRadius:"20px"}}>
+                        {ing}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{fontSize:"11px",color:"#94a3b8",marginTop:"8px"}}>
+                    + základní suroviny: sůl, pepř, olej, cibule, česnek, rýže, brambory, cukr, mouka, máslo…
+                  </div>
+                </div>
+
+                {/* Matched recipes */}
+                <div style={{fontSize:"13px",fontWeight:700,color:"#1e293b",marginBottom:"10px"}}>
+                  {fridgeResult.matches.length > 0
+                    ? `✅ ${fridgeResult.matches.length} receptů, které teď uvařím:`
+                    : "😕 Nenašly se recepty s 85 %+ surovin. Zkus nafotit víc věcí z ledničky."}
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(255px,1fr))",gap:"10px"}}>
+                  {fridgeResult.matches.map(({recipe:r, score, missing, matched, total})=>{
+                    const ts=TAG_STYLES[r.tag]||TAG_STYLES["Kuřecí"];
+                    const pct=Math.round(score*100);
+                    return (
+                      <div key={r.id} className="recipe-card" onClick={()=>{setDetailRecipe(r);setDetailTab("ing");}}>
+                        <div style={{height:"5px",background:`linear-gradient(90deg,${ts.from},${ts.to})`}}/>
+                        <div style={{padding:"14px"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"8px"}}>
+                            <span style={{fontSize:"26px"}}>{r.emoji}</span>
+                            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"4px"}}>
+                              <span style={{background:pct===100?"#dcfce7":pct>=90?"#d1fae5":"#fef9c3",color:pct===100?"#15803d":pct>=90?"#059669":"#854d0e",fontSize:"11px",fontWeight:800,padding:"3px 8px",borderRadius:"20px"}}>
+                                {pct}% surovin ✓
+                              </span>
+                              <span style={{fontSize:"9px",color:"#94a3b8",fontWeight:600}}>{matched}/{total} ingrediencí</span>
+                            </div>
+                          </div>
+                          <div style={{fontSize:"14px",fontWeight:700,color:"#1e293b",lineHeight:1.3,marginBottom:"4px"}}>{r.name}</div>
+                          {r.desc&&<p style={{fontSize:"11px",color:"#64748b",lineHeight:1.4,marginBottom:"8px"}}>{r.desc}</p>}
+                          <div style={{display:"flex",gap:"6px",marginBottom:"10px",flexWrap:"wrap"}}>
+                            <span style={{fontSize:"10px",background:"#f1f5f9",color:"#64748b",padding:"2px 8px",borderRadius:"8px",fontWeight:600}}>⏱ {r.time}</span>
+                            <TagBadge tag={r.tag}/>
+                          </div>
+                          {missing.length>0&&(
+                            <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:"8px",padding:"6px 10px",marginBottom:"8px"}}>
+                              <div style={{fontSize:"10px",fontWeight:700,color:"#c2410c",marginBottom:"3px"}}>Chybí ({missing.length}):</div>
+                              <div style={{fontSize:"11px",color:"#9a3412"}}>{missing.slice(0,4).join(", ")}{missing.length>4?` +${missing.length-4} další`:""}</div>
+                            </div>
+                          )}
+                          <div style={{display:"flex",gap:"6px"}}>
+                            <button className="primary-btn" style={{flex:1,fontSize:"10px",padding:"8px"}} onClick={e=>{e.stopPropagation();setDetailTab("ing");setDetailRecipe(r);}}>👁 Detail</button>
+                            <button className="green-btn" style={{fontSize:"10px",padding:"8px 10px"}} onClick={e=>{e.stopPropagation();addRecipeToShopping(r);}}>🛒</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {!fridgeResult&&(
+              <div style={{textAlign:"center",padding:"28px 20px",background:"#fff",borderRadius:"16px",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"}}>
+                <div style={{fontSize:"36px",marginBottom:"8px"}}>🥦🧀🥕</div>
+                <div style={{fontSize:"13px",fontWeight:600,color:"#64748b",marginBottom:"4px"}}>Zadej suroviny které máš doma</div>
+                <div style={{fontSize:"11px",color:"#94a3b8",lineHeight:1.6}}>Základní suroviny (sůl, pepř, olej, cibule, česnek,<br/>rýže, brambory, vejce, mléko, mouka, máslo, ocet)<br/>se počítají automaticky.</div>
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* DETAIL MODAL */}
+      {detailRecipe&&(
+        <div className="modal-overlay" onClick={()=>{setDetailRecipe(null);setPlanPicker(false);}}>
+          <div className="modal-box" onClick={e=>e.stopPropagation()}>
+            <div style={{height:"5px",background:`linear-gradient(90deg,${(TAG_STYLES[detailRecipe.tag]||TAG_STYLES["Kuřecí"]).from},${(TAG_STYLES[detailRecipe.tag]||TAG_STYLES["Kuřecí"]).to})`,borderRadius:"4px 4px 0 0",margin:"-22px -22px 18px -22px"}}/>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"14px"}}>
+              <div style={{display:"flex",gap:"12px",alignItems:"center"}}>
+                <span style={{fontSize:"36px"}}>{detailRecipe.emoji}</span>
+                <div>
+                  <h2 style={{fontSize:"18px",fontWeight:800,color:"#1e293b",lineHeight:1.2}}>{detailRecipe.name}</h2>
+                  <div style={{display:"flex",gap:"6px",marginTop:"5px",flexWrap:"wrap"}}>
+                    <TagBadge tag={detailRecipe.tag}/>
+                    <span style={{fontSize:"11px",background:"#f1f5f9",color:"#64748b",padding:"2px 8px",borderRadius:"8px",fontWeight:600}}>⏱ {detailRecipe.time}</span>
+                    <span style={{color:"#f59e0b",fontSize:"12px",letterSpacing:"-1px"}}>{"★".repeat(detailRecipe.rating)}{"☆".repeat(5-detailRecipe.rating)}</span>
+                  </div>
+                </div>
+              </div>
+              <button onClick={()=>{setDetailRecipe(null);setPlanPicker(false);}} style={{background:"#f1f5f9",border:"none",width:"32px",height:"32px",borderRadius:"50%",cursor:"pointer",fontSize:"16px",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>✕</button>
+            </div>
+            {detailRecipe.desc&&<p style={{fontSize:"13px",color:"#64748b",lineHeight:1.5,marginBottom:"14px"}}>{detailRecipe.desc}</p>}
+            <div style={{display:"flex",borderBottom:"1px solid #e2e8f0",marginBottom:"14px"}}>
+              <button className={`dtab-btn ${detailTab==="ing"?"on":""}`} onClick={()=>setDetailTab("ing")}>🧺 Ingredience ({detailRecipe.ingredients.length})</button>
+              {detailRecipe.steps?.length>0&&<button className={`dtab-btn ${detailTab==="steps"?"on":""}`} onClick={()=>setDetailTab("steps")}>📋 Postup ({detailRecipe.steps.length} kroků)</button>}
+            </div>
+            {detailTab==="ing"&&(
+              <div style={{columns:"2",columnGap:"12px",marginBottom:"18px"}}>
+                {detailRecipe.ingredients.map((ing,i)=>(
+                  <div key={i} style={{fontSize:"13px",color:"#374151",marginBottom:"5px",breakInside:"avoid",display:"flex",gap:"6px",alignItems:"flex-start"}}>
+                    <span style={{color:"#6366f1",fontWeight:700,flexShrink:0}}>·</span>{ing}
+                  </div>
+                ))}
+              </div>
+            )}
+            {detailTab==="steps"&&detailRecipe.steps?.length>0&&(
+              <div style={{marginBottom:"18px"}}>
+                {detailRecipe.steps.map((step,i)=>(
+                  <div key={i} style={{display:"flex",gap:"10px",marginBottom:"12px",alignItems:"flex-start"}}>
+                    <div className="step-num">{i+1}</div>
+                    <p style={{fontSize:"13px",color:"#374151",lineHeight:1.6,flex:1}}>{step}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Přidat do plánu */}
+            {planPicker?(
+              <div style={{background:"#f0f4ff",borderRadius:"14px",padding:"14px",marginBottom:"8px"}}>
+                <div style={{fontSize:"12px",fontWeight:700,color:"#6366f1",marginBottom:"10px"}}>📅 Vyber den a jídlo:</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px",marginBottom:"8px"}}>
+                  {DAYS.map((d,di)=>(
+                    <div key={d} style={{gridColumn: di===6?"span 2":"auto"}}>
+                      {MEAL_TYPES.map(meal=>{
+                        const already = plan[d][meal]?.id === detailRecipe.id;
+                        const occupied = !!plan[d][meal] && !already;
+                        return (
+                          <button key={meal}
+                            onClick={()=>{
+                              if(already) return;
+                              const p={...plan,[d]:{...plan[d],[meal]:detailRecipe}};
+                              updatePlan(p);
+                              showToast(`Přidáno: ${FULL_DAYS[di]} · ${meal} ✅`);
+                              setPlanPicker(false);
+                            }}
+                            style={{width:"100%",marginBottom:"4px",padding:"7px 8px",borderRadius:"10px",border:"none",cursor:already?"default":"pointer",fontFamily:"system-ui,sans-serif",fontSize:"11px",fontWeight:700,
+                              background: already?"#dcfce7": occupied?"#f1f5f9":"#fff",
+                              color: already?"#16a34a": occupied?"#94a3b8":"#1e293b",
+                              boxShadow: already||occupied?"none":"0 1px 3px rgba(0,0,0,0.08)",
+                              opacity: occupied?0.6:1
+                            }}>
+                            {already?"✅ ":occupied?"":"📅 "}{FULL_DAYS[di].slice(0,2)} · {meal}{occupied?` (${plan[d][meal].name.slice(0,8)}…)`:""}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>setPlanPicker(false)} style={{width:"100%",background:"none",border:"1px solid #e2e8f0",borderRadius:"10px",padding:"7px",fontSize:"12px",color:"#94a3b8",cursor:"pointer",fontFamily:"system-ui,sans-serif",fontWeight:600}}>Zrušit</button>
+              </div>
+            ):(
+              <button className="primary-btn" style={{width:"100%",fontSize:"13px",padding:"12px",marginBottom:"8px"}} onClick={()=>setPlanPicker(true)}>📅 Přidat do plánu týdne</button>
+            )}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
+              <button className="green-btn" style={{fontSize:"12px",padding:"11px"}} onClick={()=>{addRecipeToShopping(detailRecipe);setDetailRecipe(null);}}>🛒 Přidat do nákupu</button>
+              {detailRecipe.source==="Vlastní"&&<button onClick={()=>{openAddForm(detailRecipe);setDetailRecipe(null);}} style={{background:"#fef3c7",border:"none",color:"#d97706",fontWeight:700,fontSize:"12px",padding:"11px",borderRadius:"12px",cursor:"pointer",fontFamily:"system-ui,sans-serif"}}>✏️ Upravit</button>}
+              <button onClick={()=>setConfirmDelete(detailRecipe)} style={{background:"#fef2f2",border:"none",color:"#ef4444",fontWeight:700,fontSize:"12px",padding:"11px",borderRadius:"12px",cursor:"pointer",fontFamily:"system-ui,sans-serif"}}>🗑 Smazat recept</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD/EDIT FORM MODAL */}
+      {showAddForm&&(
+        <div className="modal-overlay" onClick={()=>setShowAddForm(false)}>
+          <div className="modal-box" onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"18px"}}>
+              <h2 style={{fontSize:"18px",fontWeight:800,color:"#1e293b"}}>{editingId?"✏️ Upravit recept":"+ Nový recept"}</h2>
+              <button onClick={()=>setShowAddForm(false)} style={{background:"#f1f5f9",border:"none",width:"30px",height:"30px",borderRadius:"50%",cursor:"pointer",fontSize:"15px",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+            </div>
+            <div style={{marginBottom:"14px"}}>
+              <label className="form-label">Název *</label>
+              <input className="text-input" type="text" placeholder="např. Kuřecí tikka masala" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"14px"}}>
+              <div>
+                <label className="form-label">Kategorie</label>
+                <select className="text-input" value={form.tag} onChange={e=>setForm(f=>({...f,tag:e.target.value}))}>
+                  {ALL_TAGS.filter(t=>t!=="Vlastní").map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Čas přípravy</label>
+                <select className="text-input" value={form.time} onChange={e=>setForm(f=>({...f,time:e.target.value}))}>
+                  {["15 min","20 min","25 min","30 min","35 min","40 min","45 min","50 min","60 min","75 min","90 min"].map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{marginBottom:"14px"}}>
+              <label className="form-label">Emoji</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:"5px"}}>
+                {EMOJIS.map(e=><button key={e} className={`emoji-btn ${form.emoji===e?"sel":""}`} onClick={()=>setForm(f=>({...f,emoji:e}))}>{e}</button>)}
+              </div>
+            </div>
+            <div style={{marginBottom:"14px"}}>
+              <label className="form-label">Krátký popis</label>
+              <input className="text-input" type="text" placeholder="1–2 věty o receptu…" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))}/>
+            </div>
+            <div style={{marginBottom:"14px"}}>
+              <label className="form-label">Ingredience (každá na nový řádek) *</label>
+              <textarea className="text-input" placeholder={"300 g kuřecích prsou\n2 stroužky česneku\n..."} value={form.ingredients} onChange={e=>setForm(f=>({...f,ingredients:e.target.value}))} style={{minHeight:"100px"}}/>
+            </div>
+            <div style={{marginBottom:"20px"}}>
+              <label className="form-label">Postup vaření (každý krok na nový řádek)</label>
+              <textarea className="text-input" placeholder={"Nakrájej kuřecí maso na nudličky.\nRozehřej olej na pánvi...\n..."} value={form.steps} onChange={e=>setForm(f=>({...f,steps:e.target.value}))} style={{minHeight:"110px"}}/>
+            </div>
+            <div style={{display:"flex",gap:"8px"}}>
+              <button className="green-btn" style={{flex:1}} onClick={saveRecipe} disabled={!form.name.trim()||!form.ingredients.trim()}>
+                {editingId?"✓ Uložit změny":"✓ Přidat recept"}
+              </button>
+              <button onClick={()=>setShowAddForm(false)} style={{background:"#f1f5f9",border:"none",color:"#64748b",fontWeight:700,fontSize:"13px",padding:"12px 18px",borderRadius:"12px",cursor:"pointer",fontFamily:"system-ui,sans-serif"}}>Zrušit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      {confirmDelete&&(
+        <div className="modal-overlay" onClick={()=>setConfirmDelete(null)}>
+          <div className="modal-box" style={{maxHeight:"auto",padding:"28px"}} onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:"center",marginBottom:"20px"}}>
+              <div style={{fontSize:"44px",marginBottom:"12px"}}>🗑</div>
+              <h3 style={{fontSize:"17px",fontWeight:800,color:"#1e293b",marginBottom:"8px"}}>Smazat recept?</h3>
+              <p style={{fontSize:"13px",color:"#64748b",lineHeight:1.5}}>
+                <strong>"{confirmDelete.name}"</strong><br/>bude odstraněn z knihovny i z plánu. Tuto akci nelze vrátit.
+              </p>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}}>
+              <button onClick={()=>setConfirmDelete(null)} style={{background:"#f1f5f9",border:"none",color:"#64748b",fontWeight:700,fontSize:"14px",padding:"13px",borderRadius:"12px",cursor:"pointer",fontFamily:"system-ui,sans-serif"}}>Zrušit</button>
+              <button onClick={()=>{deleteRecipe(confirmDelete);setConfirmDelete(null);}} style={{background:"linear-gradient(135deg,#ef4444,#b91c1c)",color:"#fff",border:"none",fontWeight:700,fontSize:"14px",padding:"13px",borderRadius:"12px",cursor:"pointer",fontFamily:"system-ui,sans-serif",boxShadow:"0 2px 8px rgba(239,68,68,0.35)"}}>Smazat</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
